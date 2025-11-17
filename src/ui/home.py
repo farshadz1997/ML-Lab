@@ -12,7 +12,39 @@ from utils import DataSet
 if TYPE_CHECKING:
     from .layout import AppLayout
     from pandas._typing import Dtype
-    
+
+
+def hex_to_rgb(hex_color: str) -> tuple[int,int,int]:
+    h = hex_color.lstrip("#")
+    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+
+def rgb_to_hex(rgb: tuple[int,int,int]) -> str:
+    return "#{:02x}{:02x}{:02x}".format(*[max(0, min(255, int(c))) for c in rgb])
+
+def lerp(a: float, b: float, t: float) -> float:
+    return a + (b - a) * t
+
+def sample_gradient(stops: list[str], t: float) -> str:
+    """
+    stops: list of hex colors (e.g. ['#ffffff', '#ff0000', '#000000'])
+    t: 0..1 normalized position
+    returns: hex color string
+    """
+    if not stops:
+        return "#ffffff"
+    if t <= 0:
+        return stops[0]
+    if t >= 1:
+        return stops[-1]
+    # find segment
+    seg_len = 1 / (len(stops) - 1)
+    idx = int(t / seg_len)
+    t_seg = (t - idx * seg_len) / seg_len
+    c1 = hex_to_rgb(stops[idx])
+    c2 = hex_to_rgb(stops[idx+1])
+    interp = tuple(lerp(c1[i], c2[i], t_seg) for i in range(3))
+    return rgb_to_hex(interp)
+ 
     
 @dataclass
 class Home:
@@ -21,17 +53,27 @@ class Home:
     column: ft.Column | None = None
     
     def _pick_dataset_file_result(self, e: ft.FilePickerResultEvent) -> None:
-        if e.files:
-            self.dataset_path_field.value = e.files[0].path
-            self.parent.dataset = DataSet(e.files[0].path)
-            self.display_tables_options_row.visible = True
-            self.close_dataset_btn.visible = True
-            self.open_dataset_button.height = 65
-            self.page.navigation_bar.destinations[1].disabled = False
-            self.page.navigation_bar.destinations[2].disabled = False
-            self.page.update()
-            self._display_datatable(self.parent.dataset.describe(include="all"), "Pandas describe")
-            
+        try:
+            if e.files:
+                self.parent.dataset = DataSet(e.files[0].path)
+                self.dataset_path_field.value = e.files[0].path
+                self.display_tables_options_row.visible = True
+                self.close_dataset_btn.visible = True
+                self.open_dataset_button.height = 65
+                self.page.navigation_bar.destinations[1].disabled = False
+                self.page.navigation_bar.destinations[2].disabled = False
+                self.page.update()
+                self._display_datatable(self.parent.dataset.describe(include="all"), "Pandas describe")
+        except Exception as e:
+            print(e)
+    
+    def _drop_column(self, column: str):
+        is_removed = self.parent.dataset.drop_column(column)
+        if is_removed:
+            self.parent.page.open(ft.SnackBar(ft.Text(f"'{column}' has removed from dataset", font_family="SF regular")))
+            return
+        self.parent.page.open(ft.SnackBar(ft.Text(f"'{column}' not found in dataset", font_family="SF regular")))
+          
     def _display_datatable(self, df: pd.DataFrame, title: str = "Describe") -> None:
         df = df.copy()
         df.replace(np.nan, "NaN", inplace=True)
@@ -39,7 +81,31 @@ class Home:
             columns=[
                 ft.DataColumn(label=ft.Text("")),
                 *[ft.DataColumn(
-                    label=ft.Text(col),
+                    label=ft.MenuBar(
+                        controls=[
+                            ft.SubmenuButton(
+                                content=ft.Text(col, font_family="SF regular"),
+                                controls=[
+                                    ft.MenuItemButton(
+                                        content=ft.Text("Remove column"),
+                                        leading=ft.Icon(ft.Icons.DELETE),
+                                        style=ft.ButtonStyle(
+                                            bgcolor={ft.ControlState.HOVERED: ft.Colors.RED}
+                                        ),
+                                        on_click=lambda _, c=col: self._drop_column(c)
+                                    ),
+                                    ft.MenuItemButton(
+                                        content=ft.Text("Rename column"),
+                                        leading=ft.Icon(ft.Icons.EDIT),
+                                        style=ft.ButtonStyle(
+                                            bgcolor={ft.ControlState.HOVERED: ft.Colors.BLUE}
+                                        ),
+                                        on_click=lambda _, c=col: print(c)
+                                    ),
+                                ]
+                            )
+                        ]
+                    ),
                     numeric=pd.api.types.is_numeric_dtype(df[col])
                 ) for col in df.columns]
             ],
@@ -48,7 +114,14 @@ class Home:
                     cells=[
                         ft.DataCell(content=ft.Text(stat_name)),
                         *[
-                            ft.DataCell(content=ft.Text(round(row.iloc[i], 2) if isinstance(row.iloc[i], (int, float)) else row.iloc[i]))
+                            ft.DataCell(
+                                content=ft.Text(
+                                    value=round(row.iloc[i], 2) if isinstance(
+                                        row.iloc[i], (int, float)
+                                    ) else row.iloc[i],
+                                    font_family="SF regular"
+                                )
+                            )
                             for i in range(len(df.columns))
                         ]
                     ]
@@ -68,8 +141,8 @@ class Home:
         )
         self.page.update()
 
-    def close_dataset(self, e: ft.ControlEvent | None = None):
-        self.parent.dataset.df = None
+    def close_dataset(self, e: ft.ControlEvent | None = None) -> None:
+        self.parent.dataset = None
         self.dataset_path_field.value = None
         self.display_tables_options_row.visible = False
         self.datatable_card.visible = False

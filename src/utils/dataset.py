@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, TYPE_CHECKING, Literal
 import pandas as pd
+from pathlib import Path
 
 from pandas._typing import Dtype
 
@@ -55,3 +56,13 @@ class DataSet:
         )
         percent = pd.DataFrame(missing_value_df)
         return percent
+    
+    def drop_column(self, column: str) -> bool:
+        if column in self.df.columns:
+            self.df.drop(columns=[column], inplace=True)
+            return True
+        return False
+    
+    def export_csv(self) -> None:
+        path = Path(self.dataset_path).parent.absolute()
+        self.df.to_csv(path / "new_data.csv")
