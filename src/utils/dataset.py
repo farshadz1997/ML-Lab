@@ -11,7 +11,7 @@ class DataSet:
     dataset_path: str
 
     def __post_init__(self):
-        self.df: pd.DataFrame = pd.read_csv(self.dataset_path)
+        self.df: pd.DataFrame = pd.read_csv(self.dataset_path, encoding_errors="ignore")
         
     @property
     def shape(self) -> tuple[int, int]:
@@ -58,10 +58,24 @@ class DataSet:
         return percent
     
     def drop_column(self, column: str) -> bool:
-        if column in self.df.columns:
-            self.df.drop(columns=[column], inplace=True)
-            return True
-        return False
+        try:
+            if column in self.df.columns:
+                self.df.drop(columns=[column], inplace=True)
+                return True
+            return False
+        except Exception as e:
+            print(e)
+            return False
+    
+    def rename_column(self, current_column: str, new_column: str) -> bool:
+        try:
+            if current_column in self.df.columns:
+                self.df.rename(columns={current_column: new_column}, inplace=True)
+                return True
+            return False
+        except Exception as e:
+            print(e)
+            return False
     
     def export_csv(self) -> None:
         path = Path(self.dataset_path).parent.absolute()
