@@ -1,1 +1,1 @@
-from path_converter import resource_path
+from .path_converter import resource_path
