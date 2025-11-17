@@ -30,6 +30,38 @@ class DataSet:
         exclude: list[Dtype] | None = None
     ) -> pd.DataFrame:
         return self.df.describe(percentiles, include, exclude)
+    
+    def custom_describe(self) -> pd.DataFrame:
+        variables = []
+        dtypes = []
+        count = []
+        unique = []
+        missing = []
+        for item in self.df.columns:
+            variables.append(item)
+            dtypes.append(self.df[item].dtype)
+            count.append(len(self.df[item]))
+            unique.append(len(self.df[item].unique()))
+            missing.append(self.df[item].isna().sum())
+        output = pd.DataFrame({
+            'Variable': variables, 
+            'Dtype': dtypes,
+            'Count': count,
+            'Unique': unique,
+            'Missing value': missing
+        })    
+        return output
+
+    def calculate_missing_percent(self) -> pd.DataFrame:
+        percent_missing = self.df.isnull().sum() * 100 / len(self.df)
+        missing_value_df = pd.DataFrame(
+            {
+                'column_name': self.df.columns,
+                'percent_missing': percent_missing
+            }
+        )
+        percent = pd.DataFrame(missing_value_df)
+        return percent
 
 
 @dataclass
@@ -47,6 +79,10 @@ class AppLayout:
         self.page.on_view_pop = self.view_pop
         self.page.on_route_change = self.on_route_change
         self.page.window.center()
+        self.page.window.min_height = 1000
+        self.page.window.min_width = 1000
+        self.page.window.width = 1000
+        self.page.window.height = 1000
         self.home = Home(self, self.page)
         self.data_science = DataScience(self, self.page)
         self.model_factory = ModelFactory(self, self.page)
@@ -54,10 +90,11 @@ class AppLayout:
             on_change=self.on_navigation_change,
             destinations=[
                 ft.NavigationBarDestination(icon=ft.Icons.DATA_OBJECT, label="Dataset overview"),
-                ft.NavigationBarDestination(icon=ft.Icons.ANALYTICS, label="Data Science"),
+                ft.NavigationBarDestination(icon=ft.Icons.ANALYTICS, label="Data Science", disabled=True),
                 ft.NavigationBarDestination(
                     icon=ft.Icons.MODEL_TRAINING,
                     label="Model Factory",
+                    disabled=True
                 ),
             ]
         )
@@ -96,11 +133,16 @@ class Home:
     def _pick_dataset_file_result(self, e: ft.FilePickerResultEvent) -> None:
         if e.files:
             self.dataset_path_field.value = e.files[0].path
-            self.page.update()
             self.parent.dataset = DataSet(e.files[0].path)
-            self._display_datatable(self.parent.dataset.describe(include="all"))
+            self.display_tables_options_row.visible = True
+            self.close_dataset_btn.visible = True
+            self.open_dataset_button.height = 65
+            self.page.navigation_bar.destinations[1].disabled = False
+            self.page.navigation_bar.destinations[2].disabled = False
+            self.page.update()
+            self._display_datatable(self.parent.dataset.describe(include="all"), "Pandas describe")
             
-    def _display_datatable(self, df: pd.DataFrame) -> None:
+    def _display_datatable(self, df: pd.DataFrame, title: str = "Describe") -> None:
         df = df.copy()
         df.replace(np.nan, "NaN", inplace=True)
         datatable = ft.DataTable(
@@ -116,7 +158,7 @@ class Home:
                     cells=[
                         ft.DataCell(content=ft.Text(stat_name)),
                         *[
-                            ft.DataCell(content=ft.Text(row.iloc[i]))
+                            ft.DataCell(content=ft.Text(round(row.iloc[i], 2) if isinstance(row.iloc[i], (int, float)) else row.iloc[i]))
                             for i in range(len(df.columns))
                         ]
                     ]
@@ -125,24 +167,45 @@ class Home:
         )
         self.datatable_card.visible = True
         self.datatable_container.content = ft.Column(
-            scroll=ft.ScrollMode.AUTO,
-            controls=[ft.Row(controls=[datatable], scroll=ft.ScrollMode.AUTO)]
+            scroll=ft.ScrollMode.ALWAYS,
+            alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                ft.Row([ft.Text(title, font_family="SF thin", size=24, expand=True, text_align="center")]),
+                ft.Divider(),
+                ft.Row(controls=[datatable], scroll=ft.ScrollMode.AUTO)
+            ]
         )
         self.page.update()
 
-            
+    def close_dataset(self, e: ft.ControlEvent | None = None):
+        self.parent.dataset.df = None
+        self.dataset_path_field.value = None
+        self.display_tables_options_row.visible = False
+        self.datatable_card.visible = False
+        self.datatable_container.content = None
+        self.open_dataset_button.height = 50
+        self.close_dataset_btn.visible = False
+        self.page.navigation_bar.destinations[1].disabled = True
+        self.page.navigation_bar.destinations[2].disabled = True
+        self.page.update()
+
     def build_controls(self) -> ft.Column:
         if self.column:
             return self.column
                 
         pick_files_dialog = ft.FilePicker(on_result=self._pick_dataset_file_result)
         self.parent.page.overlay.append(pick_files_dialog)
+        self.close_dataset_btn = ft.IconButton(
+            icon=ft.Icons.CLOSE, visible=False, on_click=self.close_dataset
+        )
         self.dataset_path_field = ft.TextField(
             label="Dataset file",
             label_style=ft.TextStyle(font_family="SF regular"),
             text_style=ft.TextStyle(font_family="SF regular"),
             read_only=True,
-            expand=6
+            expand=6,
+            suffix=self.close_dataset_btn
         )
         self.open_dataset_button = ft.FilledButton(
             text="Open dataset",
@@ -159,14 +222,65 @@ class Home:
                 text_style=ft.TextStyle(font_family="SF regular"),
             )
         )
-        self.datatable_container = ft.Container(margin=ft.margin.all(15))
+        self.pandas_describe_btn = ft.FilledButton(
+            text="Pandas describe",
+            icon=ft.Icons.ANALYTICS,
+            expand=1,
+            on_click=lambda _: self._display_datatable(
+                self.parent.dataset.describe(include="all"),
+                "Pandas describe"
+            ),
+            style=ft.ButtonStyle(
+                shape=ft.RoundedRectangleBorder(radius=8),
+                elevation=5,
+                text_style=ft.TextStyle(font_family="SF regular"),
+            )
+        )
+        self.custom_describe_btn = ft.FilledButton(
+            text="Custom describe",
+            icon=ft.Icons.ANALYTICS,
+            expand=1,
+            on_click=lambda _: self._display_datatable(
+                self.parent.dataset.custom_describe(),
+                "Custom describe"
+            ),
+            style=ft.ButtonStyle(
+                shape=ft.RoundedRectangleBorder(radius=8),
+                elevation=5,
+                text_style=ft.TextStyle(font_family="SF regular"),
+            )
+        )
+        self.missing_percent_btn = ft.FilledButton(
+            text="Missing values table",
+            icon=ft.Icons.ANALYTICS,
+            expand=1,
+            on_click=lambda _: self._display_datatable(
+                self.parent.dataset.calculate_missing_percent(),
+                "Missing values percentage"
+            ),
+            style=ft.ButtonStyle(
+                shape=ft.RoundedRectangleBorder(radius=8),
+                elevation=5,
+                text_style=ft.TextStyle(font_family="SF regular"),
+            )
+        )
+        self.display_tables_options_row = ft.Row(
+            visible=False,
+            controls=[
+                ft.Text("Options:", font_family="SF thin", size=20, expand=1),
+                self.pandas_describe_btn,
+                self.custom_describe_btn,
+                self.missing_percent_btn
+            ]
+        )
+        self.datatable_container = ft.Container(margin=ft.margin.all(15), height=600)
         self.datatable_card = ft.Card(visible=False, content=self.datatable_container)
         self.column = ft.Column(
             scroll=ft.ScrollMode.AUTO,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             alignment=ft.MainAxisAlignment.CENTER,
             controls=[
-                ft.Text("Dataset Overview", font_family="SF thin", size=20, expand=True, text_align="center"),
+                ft.Text("Dataset Overview", font_family="SF thin", size=30, expand=True, text_align="center"),
                 ft.Divider(),
                 ft.Card(
                     content=ft.Container(
@@ -181,6 +295,7 @@ class Home:
                                         self.open_dataset_button
                                     ],
                                 ),
+                                self.display_tables_options_row
                             ]
                         )
                     )
