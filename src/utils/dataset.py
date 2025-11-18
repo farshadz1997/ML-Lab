@@ -66,6 +66,17 @@ class DataSet:
         except Exception as e:
             print(e)
             return False
+        
+    def drop_row(self, row_index: int) -> bool:
+        try:
+            if 0 <= row_index < len(self.df):
+                self.df.drop(index=row_index, inplace=True)
+                # self.df.reset_index(drop=True, inplace=True)
+                return True
+            return False
+        except Exception as e:
+            print(e)
+            return False
     
     def rename_column(self, current_column: str, new_column: str) -> bool:
         try:

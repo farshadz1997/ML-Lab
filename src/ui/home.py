@@ -4,7 +4,7 @@ from pathlib import Path
 import flet as ft
 import pandas as pd
 import numpy as np
-from typing import List, Literal, Any, TYPE_CHECKING
+from typing import List, Literal, Any, TYPE_CHECKING, Callable
 from dataclasses import dataclass, field
 from helpers import resource_path
 from utils import DataSet
@@ -12,38 +12,6 @@ from utils import DataSet
 if TYPE_CHECKING:
     from .layout import AppLayout
     from pandas._typing import Dtype
-
-
-def hex_to_rgb(hex_color: str) -> tuple[int,int,int]:
-    h = hex_color.lstrip("#")
-    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
-
-def rgb_to_hex(rgb: tuple[int,int,int]) -> str:
-    return "#{:02x}{:02x}{:02x}".format(*[max(0, min(255, int(c))) for c in rgb])
-
-def lerp(a: float, b: float, t: float) -> float:
-    return a + (b - a) * t
-
-def sample_gradient(stops: list[str], t: float) -> str:
-    """
-    stops: list of hex colors (e.g. ['#ffffff', '#ff0000', '#000000'])
-    t: 0..1 normalized position
-    returns: hex color string
-    """
-    if not stops:
-        return "#ffffff"
-    if t <= 0:
-        return stops[0]
-    if t >= 1:
-        return stops[-1]
-    # find segment
-    seg_len = 1 / (len(stops) - 1)
-    idx = int(t / seg_len)
-    t_seg = (t - idx * seg_len) / seg_len
-    c1 = hex_to_rgb(stops[idx])
-    c2 = hex_to_rgb(stops[idx+1])
-    interp = tuple(lerp(c1[i], c2[i], t_seg) for i in range(3))
-    return rgb_to_hex(interp)
  
     
 @dataclass
@@ -63,24 +31,76 @@ class Home:
                 self.page.navigation_bar.destinations[1].disabled = False
                 self.page.navigation_bar.destinations[2].disabled = False
                 self.page.update()
-                self._display_describe_datatable()
+                self._create_describe_datatable()
         except Exception as e:
             print(e)
     
-    def _drop_column(self, column: str):
+    def _drop_column(self, control: ft.Control) -> None:
+        column = control.parent.content.value
         if len(self.parent.dataset.df.columns) == 1:
             self.parent.page.open(ft.SnackBar(ft.Text(f"'{column}' can't be removed! at least one column need to be in dataset", font_family="SF regular")))
             return
         is_removed = self.parent.dataset.drop_column(column)
         if is_removed:
-            self.parent.page.open(ft.SnackBar(ft.Text(f"'{column}' has removed from dataset", font_family="SF regular")))
-            self._display_describe_datatable()
+            column_control: ft.DataColumn = control.parent.parent.parent
+            datatable: ft.DataTable = column_control.parent
+            column_idx = datatable.columns.index(column_control)
+            datatable.columns.remove(column_control)
+            for row in datatable.rows:
+                row.cells.pop(column_idx)
+            self.parent.page.open(ft.SnackBar(ft.Text(f"'{column}' has been removed from dataset", font_family="SF regular")))
+            self.page.update()
             return
         self.parent.page.open(ft.SnackBar(ft.Text(f"'{column}' not found in dataset", font_family="SF regular")))
+    
+    def _drop_row(self, idx: int, control: ft.Control) -> None:
+        if idx < 0 or idx >= self.parent.dataset.shape[0]:
+            self.parent.page.open(ft.SnackBar(ft.Text(f"Row index '{idx}' is out of bounds", font_family="SF regular")))
+            return
+        is_dropped = self.parent.dataset.drop_row(idx)
+        if is_dropped:
+            data_row = control.parent.parent.parent.parent
+            datatable: ft.DataTable = data_row.parent
+            datatable.rows.remove(data_row)
+            self.parent.page.open(ft.SnackBar(ft.Text(f"Row index '{idx}' has been removed from dataset", font_family="SF regular")))
+            self.page.update()
+            return
+        self.parent.page.open(ft.SnackBar(ft.Text(f"Row index '{idx}' not found in dataset", font_family="SF regular")))
+        
+    def _open_rename_dialog(self, column: str, on_finish_callback: Callable | None = None) -> None:
+        self.rename_dlg.title.value = f"Rename column ({column})?"
+        self.rename_dlg.actions[0].on_click = lambda _: self._rename_column(column, on_finish_callback)
+        self.page.update()
+        self.page.open(self.rename_dlg)
+
+    def _rename_column(self, column: str, on_finish_callback: Callable | None = None) -> None:
+        new_name: str | None = self.rename_dlg.content.value
+        if new_name in (None, ""):
+            return
+        elif any(new_name.startswith(str(i)) for i in range(10)):
+            return
+        else:
+            self.parent.dataset.rename_column(column, new_name.strip())
+            self.page.close(self.rename_dlg)
+            self.rename_dlg.title.value = "Rename column"
+            self.rename_dlg.actions[0].on_click = None
+            self.rename_dlg.content.value = None
+            self.page.update()
+            if on_finish_callback:
+                on_finish_callback()
+    
+    def _display_table(self, controls: list[ft.Control]) -> None:
+        self.datatable_card.visible = True
+        self.datatable_container.content = ft.Column(
+            scroll=ft.ScrollMode.ALWAYS,
+            alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=controls
+        )
+        self.page.update()
           
-    def _display_custom_datatable(self, df: pd.DataFrame, title: str = "Describe") -> None:
+    def _create_custom_datatable(self, df: pd.DataFrame, title: str = "Describe") -> None:
         df = df.copy()
-        df.replace(np.nan, "NaN", inplace=True)
         datatable = ft.DataTable(
             columns=[
                 ft.DataColumn(label=ft.Text("")),
@@ -108,20 +128,14 @@ class Home:
                 ) for stat_name, row in df.iterrows()
             ]
         )
-        self.datatable_card.visible = True
-        self.datatable_container.content = ft.Column(
-            scroll=ft.ScrollMode.ALWAYS,
-            alignment=ft.MainAxisAlignment.CENTER,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            controls=[
-                ft.Row([ft.Text(title, font_family="SF thin", size=24, expand=True, text_align="center")]),
-                ft.Divider(),
-                ft.Row(controls=[datatable], scroll=ft.ScrollMode.AUTO)
-            ]
-        )
-        self.page.update()
+        controls = [
+            ft.Row([ft.Text(title, font_family="SF thin", size=24, expand=True, text_align="center")]),
+            ft.Divider(),
+            ft.Row(controls=[datatable], scroll=ft.ScrollMode.AUTO)
+        ]
+        self._display_table(controls)
 
-    def _display_describe_datatable(self):
+    def _create_describe_datatable(self) -> None:
         df = self.parent.dataset.describe(include="all")
         df.replace(np.nan, "NaN", inplace=True)
         datatable = ft.DataTable(
@@ -139,7 +153,7 @@ class Home:
                                         style=ft.ButtonStyle(
                                             bgcolor={ft.ControlState.HOVERED: ft.Colors.RED}
                                         ),
-                                        on_click=lambda _, c=col: self._drop_column(c)
+                                        on_click=lambda e: self._drop_column(e.control)
                                     ),
                                     ft.MenuItemButton(
                                         content=ft.Text("Rename column"),
@@ -147,7 +161,7 @@ class Home:
                                         style=ft.ButtonStyle(
                                             bgcolor={ft.ControlState.HOVERED: ft.Colors.BLUE}
                                         ),
-                                        on_click=lambda _, c=col: self._open_rename_dialog(c)
+                                        on_click=lambda _, c=col: self._open_rename_dialog(c, self._create_describe_datatable)
                                     ),
                                 ]
                             )
@@ -175,18 +189,12 @@ class Home:
                 ) for stat_name, row in df.iterrows()
             ]
         )
-        self.datatable_card.visible = True
-        self.datatable_container.content = ft.Column(
-            scroll=ft.ScrollMode.ALWAYS,
-            alignment=ft.MainAxisAlignment.CENTER,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            controls=[
-                ft.Row([ft.Text("Pandas describe", font_family="SF thin", size=24, expand=True, text_align="center")]),
-                ft.Divider(),
-                ft.Row(controls=[datatable], scroll=ft.ScrollMode.AUTO)
-            ]
-        )
-        self.page.update()
+        controls = [
+            ft.Row([ft.Text("Pandas describe", font_family="SF thin", size=24, expand=True, text_align="center")]),
+            ft.Divider(),
+            ft.Row(controls=[datatable], scroll=ft.ScrollMode.AUTO)
+        ]
+        self._display_table(controls)
     
     def close_dataset(self, e: ft.ControlEvent | None = None) -> None:
         self.parent.dataset = None
@@ -201,27 +209,143 @@ class Home:
         self.displaying_dataset = None
         self.page.update()
 
-    def _open_rename_dialog(self, column: str):
-        self.rename_dlg.title.value = f"Rename column ({column})?"
-        self.rename_dlg.actions[0].on_click = lambda _: self._rename_column(column)
-        self.page.update()
-        self.page.open(self.rename_dlg)
-
-    def _rename_column(self, column: str):
-        new_name = self.rename_dlg.content.value
-        if new_name in (None, ""):
+    def _create_dataset_browser_table(self, page: int = 1) -> None:
+        page_size = 50
+        max_page = self.parent.dataset.shape[0] // page_size + 1
+        if page < 1 or page > max_page:
             return
-        elif any(new_name.startswith(str(i)) for i in range(10)):
-            return
-        else:
-            self.parent.dataset.rename_column(column, new_name.strip())
-            self.page.close(self.rename_dlg)
-            self.rename_dlg.title.value = "Rename column"
-            self.rename_dlg.actions[0].on_click = None
-            self.rename_dlg.content.value = None
-            self.page.update()
-            self._display_describe_datatable()
-
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        df = self.parent.dataset.df.iloc[start_idx:end_idx]
+        datatable = ft.DataTable(
+            columns=[
+                ft.DataColumn(label=ft.Text("")),
+                *[ft.DataColumn(
+                    label=ft.MenuBar(
+                        controls=[
+                            ft.SubmenuButton(
+                                content=ft.Text(col, font_family="SF regular"),
+                                controls=[
+                                    ft.MenuItemButton(
+                                        content=ft.Text("Remove column"),
+                                        leading=ft.Icon(ft.Icons.DELETE),
+                                        style=ft.ButtonStyle(
+                                            bgcolor={ft.ControlState.HOVERED: ft.Colors.RED}
+                                        ),
+                                        on_click=lambda e: self._drop_column(e.control)
+                                    ),
+                                    ft.MenuItemButton(
+                                        content=ft.Text("Rename column"),
+                                        leading=ft.Icon(ft.Icons.EDIT),
+                                        style=ft.ButtonStyle(
+                                            bgcolor={ft.ControlState.HOVERED: ft.Colors.BLUE}
+                                        ),
+                                        on_click=lambda _, c=col: self._open_rename_dialog(c, lambda _: self._create_dataset_browser_table(page))
+                                    ),
+                                ]
+                            )
+                        ]
+                    ),
+                    numeric=pd.api.types.is_numeric_dtype(df[col])
+                ) for col in df.columns]
+            ],
+            rows=[
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(
+                            content=ft.TextButton(
+                                content=ft.Row(
+                                    alignment=ft.MainAxisAlignment.SPACE_AROUND,
+                                    controls=[
+                                        ft.Text(stat_name, font_family="SF regular"),
+                                        ft.IconButton(
+                                            icon=ft.Icons.DELETE,
+                                            tooltip="Delete row",
+                                            on_click=lambda e, r=int(stat_name): self._drop_row(r, e.control),
+                                            style=ft.ButtonStyle(
+                                                bgcolor={ft.ControlState.HOVERED: ft.Colors.RED}
+                                            ),
+                                        )
+                                    ]
+                                ),
+                                style=ft.ButtonStyle(
+                                    shape=ft.RoundedRectangleBorder(radius=8),
+                                    elevation=5,
+                                    text_style=ft.TextStyle(font_family="SF regular"),
+                                ),
+                            )
+                        ),
+                        *[
+                            ft.DataCell(
+                                content=ft.Text(
+                                    value=round(row.iloc[i], 2) if isinstance(
+                                        row.iloc[i], (int, float)
+                                    ) else row.iloc[i],
+                                    font_family="SF regular"
+                                )
+                            )
+                            for i in range(len(df.columns))
+                        ]
+                    ]
+                ) for stat_name, row in df.iterrows()
+            ]
+        )
+        controls = [
+            ft.Row([ft.Text(f"Dataset browser page: {page}", font_family="SF thin", size=24, expand=True, text_align="center")]),
+            ft.Divider(),
+            ft.Row(controls=[datatable], scroll=ft.ScrollMode.AUTO),
+            ft.Row(
+                alignment=ft.MainAxisAlignment.CENTER,
+                controls=[
+                    ft.FilledButton(
+                        text="First page",
+                        icon=ft.Icons.FIRST_PAGE,
+                        disabled=(page == 1),
+                        on_click=lambda _: self._create_dataset_browser_table(1),
+                        style=ft.ButtonStyle(
+                            shape=ft.RoundedRectangleBorder(radius=8),
+                            elevation=5,
+                            text_style=ft.TextStyle(font_family="SF regular"),
+                        )
+                    ),
+                    ft.FilledButton(
+                        text="Previous",
+                        icon=ft.Icons.ARROW_BACK,
+                        on_click=lambda _: self._create_dataset_browser_table(page - 1),
+                        disabled=(page == 1),
+                        style=ft.ButtonStyle(
+                            shape=ft.RoundedRectangleBorder(radius=8),
+                            elevation=5,
+                            text_style=ft.TextStyle(font_family="SF regular"),
+                        )
+                    ),
+                    ft.FilledButton(
+                        text="Next",
+                        icon=ft.Icons.ARROW_FORWARD,
+                        on_click=lambda _: self._create_dataset_browser_table(page + 1),
+                        disabled=(page == (len(self.parent.dataset.df) // page_size) + 1),
+                        style=ft.ButtonStyle(
+                            shape=ft.RoundedRectangleBorder(radius=8),
+                            elevation=5,
+                            text_style=ft.TextStyle(font_family="SF regular"),
+                        )
+                    ),
+                    ft.FilledButton(
+                        text="Last Page",
+                        icon=ft.Icons.LAST_PAGE,
+                        disabled=(page == (len(self.parent.dataset.df) // page_size) + 1),
+                        on_click=lambda _: self._create_dataset_browser_table((len(self.parent.dataset.df) // page_size) + 1),
+                        style=ft.ButtonStyle(
+                            shape=ft.RoundedRectangleBorder(radius=8),
+                            elevation=5,
+                            text_style=ft.TextStyle(font_family="SF regular"),
+                        )
+                    ),
+                ]
+            )
+        ]
+        self._display_table(controls)
+        
     def build_controls(self) -> ft.Column:
         if self.column:
             return self.column
@@ -290,11 +414,22 @@ class Home:
                 text_style=ft.TextStyle(font_family="SF regular"),
             )
         )
+        self.browse_dataset_btn = ft.FilledButton(
+            text="Browse dataset",
+            icon=ft.Icons.SEARCH,
+            expand=1,
+            on_click=lambda _: self._create_dataset_browser_table(1),
+            style=ft.ButtonStyle(
+                shape=ft.RoundedRectangleBorder(radius=8),
+                elevation=5,
+                text_style=ft.TextStyle(font_family="SF regular"),
+            )
+        )
         self.pandas_describe_btn = ft.FilledButton(
             text="Pandas describe",
             icon=ft.Icons.ANALYTICS,
             expand=1,
-            on_click=lambda _: self._display_describe_datatable(),
+            on_click=lambda _: self._create_describe_datatable(),
             style=ft.ButtonStyle(
                 shape=ft.RoundedRectangleBorder(radius=8),
                 elevation=5,
@@ -305,7 +440,7 @@ class Home:
             text="Custom describe",
             icon=ft.Icons.ANALYTICS,
             expand=1,
-            on_click=lambda _: self._display_custom_datatable(
+            on_click=lambda _: self._create_custom_datatable(
                 self.parent.dataset.custom_describe(),
                 "Custom describe",
             ),
@@ -319,7 +454,7 @@ class Home:
             text="Missing values table",
             icon=ft.Icons.ANALYTICS,
             expand=1,
-            on_click=lambda _: self._display_custom_datatable(
+            on_click=lambda _: self._create_custom_datatable(
                 self.parent.dataset.calculate_missing_percent(),
                 "Missing values percentage",
             ),
@@ -333,6 +468,7 @@ class Home:
             visible=False,
             controls=[
                 ft.Text("Options:", font_family="SF thin", size=20, expand=1),
+                self.browse_dataset_btn,
                 self.pandas_describe_btn,
                 self.custom_describe_btn,
                 self.missing_percent_btn
