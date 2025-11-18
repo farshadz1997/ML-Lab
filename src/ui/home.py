@@ -11,7 +11,7 @@ from utils import DataSet
 
 if TYPE_CHECKING:
     from .layout import AppLayout
-    from pandas._typing import Dtype
+    from pandas._typing import Dtype, float
  
     
 @dataclass
@@ -67,28 +67,37 @@ class Home:
             return
         self.parent.page.open(ft.SnackBar(ft.Text(f"Row index '{idx}' not found in dataset", font_family="SF regular")))
         
-    def _open_rename_dialog(self, column: str, on_finish_callback: Callable | None = None) -> None:
-        self.rename_dlg.title.value = f"Rename column ({column})?"
-        self.rename_dlg.actions[0].on_click = lambda _: self._rename_column(column, on_finish_callback)
-        self.page.update()
-        self.page.open(self.rename_dlg)
-
-    def _rename_column(self, column: str, on_finish_callback: Callable | None = None) -> None:
-        new_name: str | None = self.rename_dlg.content.value
-        if new_name in (None, ""):
-            return
-        elif any(new_name.startswith(str(i)) for i in range(10)):
-            return
-        else:
-            self.parent.dataset.rename_column(column, new_name.strip())
-            self.page.close(self.rename_dlg)
-            self.rename_dlg.title.value = "Rename column"
-            self.rename_dlg.actions[0].on_click = None
-            self.rename_dlg.content.value = None
+    def _open_rename_field(self, control: ft.Control) -> None:
+        def on_blur_event(e: ft.ControlEvent, previous_control: ft.MenuBar, previous_name: str) -> None:
+            new_name: str | None = e.control.value
+            if new_name is None:
+                new_name = previous_name
+            elif isinstance(new_name, str):
+                if new_name.strip() == "":
+                    new_name = previous_name
+            previous_control.controls[0].content.value = new_name.strip()
+            e.control.parent.label = previous_control
+            if new_name != previous_name:
+                self.parent.dataset.rename_column(current_column_name, new_name.strip())
             self.page.update()
-            if on_finish_callback:
-                on_finish_callback()
-    
+        
+        current_column_name: str = control.parent.content.value
+        menubar_control: ft.MenuBar = control.parent.parent
+        column_control: ft.DataColumn = menubar_control.parent
+        column_control.label = ft.TextField(
+            label="New name",
+            width=100,
+            shift_enter=False,
+            multiline=False,
+            autofocus=True,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            hint_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.InputFilter(r"^(?!\d).*$"),
+            on_blur=lambda e: on_blur_event(e, menubar_control, current_column_name),
+            on_submit=lambda e: on_blur_event(e, menubar_control, current_column_name)
+        )
+        self.page.update()
+
     def _display_table(self, controls: list[ft.Control]) -> None:
         self.datatable_card.visible = True
         self.datatable_container.content = ft.Column(
@@ -161,7 +170,7 @@ class Home:
                                         style=ft.ButtonStyle(
                                             bgcolor={ft.ControlState.HOVERED: ft.Colors.BLUE}
                                         ),
-                                        on_click=lambda _, c=col: self._open_rename_dialog(c, self._create_describe_datatable)
+                                        on_click=lambda e: self._open_rename_field(e.control)
                                     ),
                                 ]
                             )
@@ -210,7 +219,7 @@ class Home:
         self.page.update()
 
     def _create_dataset_browser_table(self, page: int = 1) -> None:
-        page_size = 50
+        page_size = 10
         max_page = self.parent.dataset.shape[0] // page_size + 1
         if page < 1 or page > max_page:
             return
@@ -240,7 +249,7 @@ class Home:
                                         style=ft.ButtonStyle(
                                             bgcolor={ft.ControlState.HOVERED: ft.Colors.BLUE}
                                         ),
-                                        on_click=lambda _, c=col: self._open_rename_dialog(c, lambda _: self._create_dataset_browser_table(page))
+                                        on_click=lambda e: self._open_rename_field(e.control)
                                     ),
                                 ]
                             )
@@ -291,7 +300,7 @@ class Home:
             ]
         )
         controls = [
-            ft.Row([ft.Text(f"Dataset browser page: {page}", font_family="SF thin", size=24, expand=True, text_align="center")]),
+            ft.Row([ft.Text(f"Dataset browser page: {page}/{max_page}", font_family="SF thin", size=24, expand=True, text_align="center")]),
             ft.Divider(),
             ft.Row(controls=[datatable], scroll=ft.ScrollMode.AUTO),
             ft.Row(
