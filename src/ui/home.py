@@ -180,6 +180,11 @@ class Home:
                                         style=ft.ButtonStyle(bgcolor={ft.ControlState.HOVERED: ft.Colors.BLUE}),
                                         on_click=lambda e: self._open_rename_field(e.control)
                                     ),
+                                    ft.MenuItemButton(
+                                        content=ft.Text("Unique values"),
+                                        leading=ft.Icon(ft.Icons.DIFFERENCE),
+                                        on_click=lambda e, col=col: self._display_unique_values(col)
+                                    ),
                                 ]
                             )
                         ]
@@ -591,6 +596,11 @@ class Home:
                                         ),
                                         on_click=lambda e: self._open_rename_field(e.control)
                                     ),
+                                    ft.MenuItemButton(
+                                        content=ft.Text("Unique values"),
+                                        leading=ft.Icon(ft.Icons.DIFFERENCE),
+                                        on_click=lambda e, col=col: self._display_unique_values(col)
+                                    ),
                                 ]
                             )
                         ]
@@ -671,7 +681,6 @@ class Home:
             self._display_table(controls)
             return
 
-        # Use the generic paginated table builder for browsing
         self._create_paginated_table(df, "Dataset browser", page)
         
     def _reset_index(self, e: ft.ControlEvent | None = None) -> None:
@@ -679,49 +688,69 @@ class Home:
         self.parent.dataset.reset_index()
         self.parent.page.open(ft.SnackBar(ft.Text("Dataset index has been reset.", font_family="SF regular")))
         
-        # Refresh current display
         if self.current_display_mode:
             self._refresh_display()
+            
+    def _display_unique_values(self, column: str, e: ft.ControlEvent | None = None) -> None:
+        """Display unique values for a specific column"""
+        try:
+            series = self.parent.dataset.df[column]
+        except Exception:
+            self.parent.page.open(ft.SnackBar(ft.Text(f"Column '{column}' not found", font_family="SF regular")))
+            return
+
+        vc = series.value_counts(dropna=False)
+        unique_df = vc.reset_index()
+        unique_df.columns = [column, "count"]
+
+        def _render(page: int = 1) -> None:
+            total = len(unique_df)
+            page_size = 10
+            max_page = (total - 1) // page_size + 1 if total > 0 else 1
+            if page < 1:
+                page = 1
+            if page > max_page:
+                page = max_page
+
+            start = (page - 1) * page_size
+            end = start + page_size
+            df_slice = unique_df.iloc[start:end]
+
+            datatable = ft.DataTable(
+                columns=[
+                    ft.DataColumn(label=ft.Text(column, font_family="SF regular")),
+                    ft.DataColumn(label=ft.Text("Count", font_family="SF regular"), numeric=True),
+                ],
+                rows=[
+                    ft.DataRow(cells=[
+                        ft.DataCell(content=ft.Text("NaN" if pd.isna(row.iloc[0]) else str(row.iloc[0]), font_family="SF regular")),
+                        ft.DataCell(content=ft.Text(str(int(row.iloc[1])), font_family="SF regular"))
+                    ]) for _, row in df_slice.iterrows()
+                ]
+            )
+
+            controls = [
+                ft.Row([ft.Text(f"Unique values for '{column}' - Page {page}/{max_page}", font_family="SF thin", size=20, expand=True, text_align="center")]),
+                ft.Divider(),
+                ft.Row(controls=[datatable], scroll=ft.ScrollMode.AUTO),
+                ft.Row(
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    controls=[
+                        ft.FilledButton(text="First page", icon=ft.Icons.FIRST_PAGE, disabled=(page == 1), on_click=lambda _: _render(1)),
+                        ft.FilledButton(text="Previous", icon=ft.Icons.ARROW_BACK, disabled=(page == 1), on_click=lambda _: _render(page - 1)),
+                        ft.FilledButton(text="Next", icon=ft.Icons.ARROW_FORWARD, disabled=(page == max_page), on_click=lambda _: _render(page + 1)),
+                        ft.FilledButton(text="Last Page", icon=ft.Icons.LAST_PAGE, disabled=(page == max_page), on_click=lambda _: _render(max_page)),
+                    ]
+                )
+            ]
+
+            self._display_table(controls)
+
+        _render(1)
     
     def build_controls(self) -> ft.Column:
         if self.column:
             return self.column
-
-        self.rename_dlg = ft.AlertDialog(
-            modal=True,
-            title=ft.Text("Rename column", font_family="SF regular"),
-            content=ft.TextField(
-                label="New name",
-                label_style=ft.TextStyle(font_family="SF regular"),
-                hint_text="Enter new name for the selected column",
-                hint_style=ft.TextStyle(font_family="SF regular"),
-                input_filter=ft.InputFilter(r"^\D.*$")
-            ),
-            actions=[
-                ft.FilledButton(
-                    text="Apply",
-                    expand=1,
-                    width=100,
-                    style=ft.ButtonStyle(
-                        shape=ft.RoundedRectangleBorder(radius=8),
-                        elevation=5,
-                        text_style=ft.TextStyle(font_family="SF regular"),
-                    ),
-                ),
-                ft.TextButton(
-                    text="Close",
-                    expand=1,
-                    width=100,
-                    on_click=lambda _: self.page.close(self.rename_dlg),
-                    style=ft.ButtonStyle(
-                        shape=ft.RoundedRectangleBorder(radius=8),
-                        elevation=5,
-                        text_style=ft.TextStyle(font_family="SF regular"),
-                    ),
-                ),
-            ],
-            actions_alignment=ft.MainAxisAlignment.CENTER,
-        )
 
         pick_files_dialog = ft.FilePicker(on_result=self._pick_dataset_file_result)
         self.parent.page.overlay.append(pick_files_dialog)
