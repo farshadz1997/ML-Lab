@@ -12,13 +12,15 @@ from utils import DataSet
 if TYPE_CHECKING:
     from .layout import AppLayout
     from pandas._typing import Dtype, float
- 
-    
+
+DISPLAY_MODE = Literal["describe", "custom_describe", "missing_values", "nan_rows", "duplicate_rows", "browse"]
+
 @dataclass
 class Home:
     parent: AppLayout
     page: ft.Page
     column: ft.Column | None = None
+    current_display_mode: DISPLAY_MODE | None = None
     
     def _pick_dataset_file_result(self, e: ft.FilePickerResultEvent) -> None:
         try:
@@ -97,6 +99,363 @@ class Home:
             on_submit=lambda e: on_blur_event(e, menubar_control, current_column_name)
         )
         self.page.update()
+    
+    def _drop_duplicate_rows(self, control: ft.Control) -> None:
+        """Remove all duplicate rows from dataset"""
+        initial_count = len(self.parent.dataset.df)
+        self.parent.dataset.drop_duplicates()
+        final_count = len(self.parent.dataset.df)
+        removed_count = initial_count - final_count
+        
+        message = f"Removed {removed_count} duplicate row(s). Dataset now has {final_count} rows."
+        self.parent.page.open(ft.SnackBar(ft.Text(message, font_family="SF regular")))
+        
+        # Refresh current display
+        if self.current_display_mode:
+            self._refresh_display()
+    
+    def _drop_nan_rows(self, control: ft.Control) -> None:
+        """Remove all rows with NaN values"""
+        initial_count = len(self.parent.dataset.df)
+        self.parent.dataset.drop_nan_rows()
+        final_count = len(self.parent.dataset.df)
+        removed_count = initial_count - final_count
+        
+        message = f"Removed {removed_count} row(s) with NaN values. Dataset now has {final_count} rows."
+        self.parent.page.open(ft.SnackBar(ft.Text(message, font_family="SF regular")))
+        
+        # Refresh current display
+        if self.current_display_mode:
+            self._refresh_display()
+    
+    def _refresh_display(self) -> None:
+        """Refresh the current display based on current_display_mode"""
+        if self.current_display_mode == "describe":
+            self._create_describe_datatable()
+        elif self.current_display_mode == "custom_describe":
+            self._create_custom_datatable(
+                self.parent.dataset.custom_describe(),
+                "Custom describe"
+            )
+        elif self.current_display_mode == "missing_values":
+            self._create_custom_datatable(
+                self.parent.dataset.calculate_missing_percent(),
+                "Missing values percentage"
+            )
+        elif self.current_display_mode == "nan_rows":
+            self._create_nan_rows_table()
+        elif self.current_display_mode == "duplicate_rows":
+            self._create_duplicate_rows_table()
+        elif self.current_display_mode == "browse":
+            self._create_dataset_browser_table(1)
+    
+    def _create_nan_rows_table(self, page: int = 1) -> None:
+        """Display rows containing NaN values"""
+        nan_df = self.parent.dataset.get_rows_with_nan()
+        
+        if len(nan_df) == 0:
+            controls = [
+                ft.Row([ft.Text("No rows with NaN values", font_family="SF thin", size=24, expand=True, text_align="center")]),
+                ft.Divider(),
+            ]
+            self._display_table(controls)
+            return
+        
+        page_size = 10
+        max_page = len(nan_df) // page_size + 1
+        if page < 1 or page > max_page:
+            return
+        
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        df = nan_df.iloc[start_idx:end_idx].reset_index()
+        
+        datatable = ft.DataTable(
+            column_spacing=100,
+            columns=[
+                ft.DataColumn(label=ft.Text("")),
+                *[ft.DataColumn(
+                    label=ft.MenuBar(
+                        controls=[
+                            ft.SubmenuButton(
+                                content=ft.Text(col, font_family="SF regular"),
+                                controls=[
+                                    ft.MenuItemButton(
+                                        content=ft.Text("Remove column"),
+                                        leading=ft.Icon(ft.Icons.DELETE),
+                                        style=ft.ButtonStyle(
+                                            bgcolor={ft.ControlState.HOVERED: ft.Colors.RED}
+                                        ),
+                                        on_click=lambda e: self._drop_column(e.control)
+                                    ),
+                                    ft.MenuItemButton(
+                                        content=ft.Text("Rename column"),
+                                        leading=ft.Icon(ft.Icons.EDIT),
+                                        style=ft.ButtonStyle(
+                                            bgcolor={ft.ControlState.HOVERED: ft.Colors.BLUE}
+                                        ),
+                                        on_click=lambda e: self._open_rename_field(e.control)
+                                    ),
+                                ]
+                            )
+                        ]
+                    ),
+                    numeric=pd.api.types.is_numeric_dtype(nan_df[col])
+                ) for col in nan_df.columns]
+            ],
+            rows=[
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(
+                            content=ft.TextButton(
+                                content=ft.Row(
+                                    alignment=ft.MainAxisAlignment.SPACE_AROUND,
+                                    controls=[
+                                        ft.Text(str(row.iloc[0]), font_family="SF regular"),
+                                        ft.IconButton(
+                                            icon=ft.Icons.DELETE,
+                                            tooltip="Delete row",
+                                            on_click=lambda e, r=int(row.iloc[0]): self._drop_row(r, e.control),
+                                            style=ft.ButtonStyle(
+                                                bgcolor={ft.ControlState.HOVERED: ft.Colors.RED}
+                                            ),
+                                        )
+                                    ]
+                                ),
+                                style=ft.ButtonStyle(
+                                    shape=ft.RoundedRectangleBorder(radius=8),
+                                    elevation=5,
+                                    text_style=ft.TextStyle(font_family="SF regular"),
+                                ),
+                            )
+                        ),
+                        *[
+                            ft.DataCell(
+                                content=ft.Text(
+                                    value=str(round(row.iloc[i+1], 2)) if isinstance(
+                                        row.iloc[i+1], (int, float)
+                                    ) else str(row.iloc[i+1]),
+                                    font_family="SF regular",
+                                    color=ft.Colors.RED if pd.isna(row.iloc[i+1]) else None
+                                )
+                            )
+                            for i in range(len(nan_df.columns))
+                        ]
+                    ]
+                ) for _, row in df.iterrows()
+            ]
+        )
+        
+        controls = [
+            ft.Row([ft.Text(f"Rows with NaN - Page {page}/{max_page}", font_family="SF thin", size=24, expand=True, text_align="center")]),
+            ft.Divider(),
+            ft.Row(controls=[datatable], scroll=ft.ScrollMode.AUTO),
+            ft.Row(
+                alignment=ft.MainAxisAlignment.CENTER,
+                controls=[
+                    ft.FilledButton(
+                        text="First page",
+                        icon=ft.Icons.FIRST_PAGE,
+                        disabled=(page == 1),
+                        on_click=lambda _: self._create_nan_rows_table(1),
+                        style=ft.ButtonStyle(
+                            shape=ft.RoundedRectangleBorder(radius=8),
+                            elevation=5,
+                            text_style=ft.TextStyle(font_family="SF regular"),
+                        )
+                    ),
+                    ft.FilledButton(
+                        text="Previous",
+                        icon=ft.Icons.ARROW_BACK,
+                        on_click=lambda _: self._create_nan_rows_table(page - 1),
+                        disabled=(page == 1),
+                        style=ft.ButtonStyle(
+                            shape=ft.RoundedRectangleBorder(radius=8),
+                            elevation=5,
+                            text_style=ft.TextStyle(font_family="SF regular"),
+                        )
+                    ),
+                    ft.FilledButton(
+                        text="Next",
+                        icon=ft.Icons.ARROW_FORWARD,
+                        on_click=lambda _: self._create_nan_rows_table(page + 1),
+                        disabled=(page == max_page),
+                        style=ft.ButtonStyle(
+                            shape=ft.RoundedRectangleBorder(radius=8),
+                            elevation=5,
+                            text_style=ft.TextStyle(font_family="SF regular"),
+                        )
+                    ),
+                    ft.FilledButton(
+                        text="Last Page",
+                        icon=ft.Icons.LAST_PAGE,
+                        disabled=(page == max_page),
+                        on_click=lambda _: self._create_nan_rows_table(max_page),
+                        style=ft.ButtonStyle(
+                            shape=ft.RoundedRectangleBorder(radius=8),
+                            elevation=5,
+                            text_style=ft.TextStyle(font_family="SF regular"),
+                        )
+                    ),
+                ]
+            )
+        ]
+        self._display_table(controls)
+        self.current_display_mode = "nan_rows"
+    
+    def _create_duplicate_rows_table(self, page: int = 1) -> None:
+        """Display duplicate rows in dataset"""
+        dup_df = self.parent.dataset.get_duplicate_rows()
+        
+        if len(dup_df) == 0:
+            controls = [
+                ft.Row([ft.Text("No duplicate rows found", font_family="SF thin", size=24, expand=True, text_align="center")]),
+                ft.Divider(),
+            ]
+            self._display_table(controls)
+            return
+        
+        page_size = 10
+        max_page = len(dup_df) // page_size + 1
+        if page < 1 or page > max_page:
+            return
+        
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        df = dup_df.iloc[start_idx:end_idx].reset_index()
+        
+        datatable = ft.DataTable(
+            column_spacing=100,
+            columns=[
+                ft.DataColumn(label=ft.Text("")),
+                *[ft.DataColumn(
+                    label=ft.MenuBar(
+                        controls=[
+                            ft.SubmenuButton(
+                                content=ft.Text(col, font_family="SF regular"),
+                                controls=[
+                                    ft.MenuItemButton(
+                                        content=ft.Text("Remove column"),
+                                        leading=ft.Icon(ft.Icons.DELETE),
+                                        style=ft.ButtonStyle(
+                                            bgcolor={ft.ControlState.HOVERED: ft.Colors.RED}
+                                        ),
+                                        on_click=lambda e: self._drop_column(e.control)
+                                    ),
+                                    ft.MenuItemButton(
+                                        content=ft.Text("Rename column"),
+                                        leading=ft.Icon(ft.Icons.EDIT),
+                                        style=ft.ButtonStyle(
+                                            bgcolor={ft.ControlState.HOVERED: ft.Colors.BLUE}
+                                        ),
+                                        on_click=lambda e: self._open_rename_field(e.control)
+                                    ),
+                                ]
+                            )
+                        ]
+                    ),
+                    numeric=pd.api.types.is_numeric_dtype(dup_df[col])
+                ) for col in dup_df.columns]
+            ],
+            rows=[
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(
+                            content=ft.TextButton(
+                                content=ft.Row(
+                                    alignment=ft.MainAxisAlignment.SPACE_AROUND,
+                                    controls=[
+                                        ft.Text(str(row.iloc[0]), font_family="SF regular"),
+                                        ft.IconButton(
+                                            icon=ft.Icons.DELETE,
+                                            tooltip="Delete row",
+                                            on_click=lambda e, r=int(row.iloc[0]): self._drop_row(r, e.control),
+                                            style=ft.ButtonStyle(
+                                                bgcolor={ft.ControlState.HOVERED: ft.Colors.RED}
+                                            ),
+                                        )
+                                    ]
+                                ),
+                                style=ft.ButtonStyle(
+                                    shape=ft.RoundedRectangleBorder(radius=8),
+                                    elevation=5,
+                                    text_style=ft.TextStyle(font_family="SF regular"),
+                                ),
+                            )
+                        ),
+                        *[
+                            ft.DataCell(
+                                content=ft.Text(
+                                    value=str(round(row.iloc[i+1], 2)) if isinstance(
+                                        row.iloc[i+1], (int, float)
+                                    ) else str(row.iloc[i+1]),
+                                    font_family="SF regular",
+                                    color=ft.Colors.RED if pd.isna(row.iloc[i+1]) else None
+                                )
+                            )
+                            for i in range(len(dup_df.columns))
+                        ]
+                    ]
+                ) for _, row in df.iterrows()
+            ]
+        )
+        
+        controls = [
+            ft.Row([ft.Text(f"Duplicate rows - Page {page}/{max_page}", font_family="SF thin", size=24, expand=True, text_align="center")]),
+            ft.Divider(),
+            ft.Row(controls=[datatable], scroll=ft.ScrollMode.AUTO),
+            ft.Row(
+                alignment=ft.MainAxisAlignment.CENTER,
+                controls=[
+                    ft.FilledButton(
+                        text="First page",
+                        icon=ft.Icons.FIRST_PAGE,
+                        disabled=(page == 1),
+                        on_click=lambda _: self._create_duplicate_rows_table(1),
+                        style=ft.ButtonStyle(
+                            shape=ft.RoundedRectangleBorder(radius=8),
+                            elevation=5,
+                            text_style=ft.TextStyle(font_family="SF regular"),
+                        )
+                    ),
+                    ft.FilledButton(
+                        text="Previous",
+                        icon=ft.Icons.ARROW_BACK,
+                        on_click=lambda _: self._create_duplicate_rows_table(page - 1),
+                        disabled=(page == 1),
+                        style=ft.ButtonStyle(
+                            shape=ft.RoundedRectangleBorder(radius=8),
+                            elevation=5,
+                            text_style=ft.TextStyle(font_family="SF regular"),
+                        )
+                    ),
+                    ft.FilledButton(
+                        text="Next",
+                        icon=ft.Icons.ARROW_FORWARD,
+                        on_click=lambda _: self._create_duplicate_rows_table(page + 1),
+                        disabled=(page == max_page),
+                        style=ft.ButtonStyle(
+                            shape=ft.RoundedRectangleBorder(radius=8),
+                            elevation=5,
+                            text_style=ft.TextStyle(font_family="SF regular"),
+                        )
+                    ),
+                    ft.FilledButton(
+                        text="Last Page",
+                        icon=ft.Icons.LAST_PAGE,
+                        disabled=(page == max_page),
+                        on_click=lambda _: self._create_duplicate_rows_table(max_page),
+                        style=ft.ButtonStyle(
+                            shape=ft.RoundedRectangleBorder(radius=8),
+                            elevation=5,
+                            text_style=ft.TextStyle(font_family="SF regular"),
+                        )
+                    ),
+                ]
+            )
+        ]
+        self._display_table(controls)
+        self.current_display_mode = "duplicate_rows"
 
     def _display_table(self, controls: list[ft.Control]) -> None:
         self.datatable_card.visible = True
@@ -137,16 +496,34 @@ class Home:
                 ) for stat_name, row in df.iterrows()
             ]
         )
+        
+        refresh_btn = ft.IconButton(
+            icon=ft.Icons.REFRESH,
+            tooltip="Refresh display",
+            on_click=lambda _: self._refresh_display(),
+            style=ft.ButtonStyle(
+                text_style=ft.TextStyle(font_family="SF regular"),
+            )
+        )
+        
         controls = [
-            ft.Row([ft.Text(title, font_family="SF thin", size=24, expand=True, text_align="center")]),
+            ft.Row([
+                ft.Text(title, font_family="SF thin", size=24, expand=True, text_align="center"),
+                refresh_btn
+            ]),
             ft.Divider(),
             ft.Row(controls=[datatable], scroll=ft.ScrollMode.AUTO)
         ]
+        
+        if title == "Custom describe":
+            self.current_display_mode = "custom_describe"
+        elif title == "Missing values percentage":
+            self.current_display_mode = "missing_values"
+        
         self._display_table(controls)
 
     def _create_describe_datatable(self) -> None:
         df = self.parent.dataset.describe(include="all")
-        df.replace(np.nan, "NaN", inplace=True)
         datatable = ft.DataTable(
             columns=[
                 ft.DataColumn(label=ft.Text("")),
@@ -189,7 +566,8 @@ class Home:
                                     value=round(row.iloc[i], 2) if isinstance(
                                         row.iloc[i], (int, float)
                                     ) else row.iloc[i],
-                                    font_family="SF regular"
+                                    font_family="SF regular",
+                                    color=ft.Colors.RED if pd.isna(row.iloc[i]) else None
                                 )
                             )
                             for i in range(len(df.columns))
@@ -198,12 +576,33 @@ class Home:
                 ) for stat_name, row in df.iterrows()
             ]
         )
+        
+        refresh_btn = ft.IconButton(
+            icon=ft.Icons.REFRESH,
+            tooltip="Refresh display",
+            on_click=lambda _: self._refresh_display(),
+            style=ft.ButtonStyle(
+                text_style=ft.TextStyle(font_family="SF regular"),
+            )
+        )
+        
         controls = [
-            ft.Row([ft.Text("Pandas describe", font_family="SF thin", size=24, expand=True, text_align="center")]),
+            ft.Row([
+                ft.Text("Pandas describe", font_family="SF thin", size=24, expand=True, text_align="center"),
+                refresh_btn
+            ]),
             ft.Divider(),
             ft.Row(controls=[datatable], scroll=ft.ScrollMode.AUTO)
         ]
+        self.current_display_mode = "describe"
         self._display_table(controls)
+    
+    def _export_csv(self, e: ft.ControlEvent | None = None) -> None:
+        try:
+            export_path = self.parent.dataset.export_csv()
+            self.parent.page.open(ft.SnackBar(ft.Text(f"Dataset exported successfully to {export_path}", font_family="SF regular")))
+        except Exception as e:
+            self.parent.page.open(ft.SnackBar(ft.Text(f"Failed to export dataset: {e}", font_family="SF regular")))
     
     def close_dataset(self, e: ft.ControlEvent | None = None) -> None:
         self.parent.dataset = None
@@ -227,6 +626,7 @@ class Home:
         end_idx = start_idx + page_size
         df = self.parent.dataset.df.iloc[start_idx:end_idx]
         datatable = ft.DataTable(
+            column_spacing=100,
             columns=[
                 ft.DataColumn(label=ft.Text("")),
                 *[ft.DataColumn(
@@ -290,7 +690,8 @@ class Home:
                                     value=round(row.iloc[i], 2) if isinstance(
                                         row.iloc[i], (int, float)
                                     ) else row.iloc[i],
-                                    font_family="SF regular"
+                                    font_family="SF regular",
+                                    color=ft.Colors.RED if pd.isna(row.iloc[i]) else None
                                 )
                             )
                             for i in range(len(df.columns))
@@ -299,8 +700,21 @@ class Home:
                 ) for stat_name, row in df.iterrows()
             ]
         )
+        
+        refresh_btn = ft.IconButton(
+            icon=ft.Icons.REFRESH,
+            tooltip="Refresh display",
+            on_click=lambda _: self._refresh_display(),
+            style=ft.ButtonStyle(
+                text_style=ft.TextStyle(font_family="SF regular"),
+            )
+        )
+        
         controls = [
-            ft.Row([ft.Text(f"Dataset browser page: {page}/{max_page}", font_family="SF thin", size=24, expand=True, text_align="center")]),
+            ft.Row([
+                ft.Text(f"Dataset browser - Page {page}/{max_page}", font_family="SF thin", size=24, expand=True, text_align="center"),
+                refresh_btn
+            ]),
             ft.Divider(),
             ft.Row(controls=[datatable], scroll=ft.ScrollMode.AUTO),
             ft.Row(
@@ -354,7 +768,17 @@ class Home:
             )
         ]
         self._display_table(controls)
+        self.current_display_mode = "browse"
         
+    def _reset_index(self, e: ft.ControlEvent | None = None) -> None:
+        """Reset the DataFrame index"""
+        self.parent.dataset.reset_index()
+        self.parent.page.open(ft.SnackBar(ft.Text("Dataset index has been reset.", font_family="SF regular")))
+        
+        # Refresh current display
+        if self.current_display_mode:
+            self._refresh_display()
+    
     def build_controls(self) -> ft.Column:
         if self.column:
             return self.column
@@ -423,50 +847,109 @@ class Home:
                 text_style=ft.TextStyle(font_family="SF regular"),
             )
         )
-        self.browse_dataset_btn = ft.FilledButton(
-            text="Browse dataset",
-            icon=ft.Icons.SEARCH,
-            expand=1,
-            on_click=lambda _: self._create_dataset_browser_table(1),
-            style=ft.ButtonStyle(
-                shape=ft.RoundedRectangleBorder(radius=8),
-                elevation=5,
-                text_style=ft.TextStyle(font_family="SF regular"),
-            )
+        
+        # Display Options Menu
+        display_options_menu = ft.MenuBar(
+            controls=[
+                ft.SubmenuButton(
+                    content=ft.Text(
+                        value="Display Options",
+                        font_family="SF regular"
+                    ),
+                    leading=ft.Icon(ft.Icons.MENU),
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                        elevation=5,
+                        text_style=ft.TextStyle(font_family="SF regular"),
+                    ),
+                    controls=[
+                        ft.MenuItemButton(
+                            content=ft.Text("Browse dataset", font_family="SF regular"),
+                            leading=ft.Icon(ft.Icons.SEARCH),
+                            on_click=lambda _: self._create_dataset_browser_table(1),
+                        ),
+                        ft.MenuItemButton(
+                            content=ft.Text("Pandas describe", font_family="SF regular"),
+                            leading=ft.Icon(ft.Icons.ANALYTICS),
+                            on_click=lambda _: self._create_describe_datatable(),
+                        ),
+                        ft.MenuItemButton(
+                            content=ft.Text("Custom describe", font_family="SF regular"),
+                            leading=ft.Icon(ft.Icons.INFO),
+                            on_click=lambda _: self._create_custom_datatable(
+                                self.parent.dataset.custom_describe(),
+                                "Custom describe",
+                            ),
+                        ),
+                        ft.MenuItemButton(
+                            content=ft.Text("Missing values", font_family="SF regular"),
+                            leading=ft.Icon(ft.Icons.WARNING),
+                            on_click=lambda _: self._create_custom_datatable(
+                                self.parent.dataset.calculate_missing_percent(),
+                                "Missing values percentage",
+                            ),
+                        ),
+                    ]
+                )
+            ]
         )
-        self.pandas_describe_btn = ft.FilledButton(
-            text="Pandas describe",
-            icon=ft.Icons.ANALYTICS,
-            expand=1,
-            on_click=lambda _: self._create_describe_datatable(),
-            style=ft.ButtonStyle(
-                shape=ft.RoundedRectangleBorder(radius=8),
-                elevation=5,
-                text_style=ft.TextStyle(font_family="SF regular"),
-            )
+        
+        # Data Quality Menu
+        data_quality_menu = ft.MenuBar(
+            controls=[
+                ft.SubmenuButton(
+                    content=ft.Text(
+                        value="Data Quality",
+                        font_family="SF regular",
+                    ),
+                    leading=ft.Icon(ft.Icons.MENU),
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                        elevation=5,
+                        text_style=ft.TextStyle(font_family="SF regular"),
+                    ),
+                    controls=[
+                        ft.MenuItemButton(
+                            content=ft.Text("Show NaN rows", font_family="SF regular"),
+                            leading=ft.Icon(ft.Icons.VISIBILITY),
+                            on_click=lambda _: self._create_nan_rows_table(),
+                        ),
+                        ft.MenuItemButton(
+                            content=ft.Text("Show duplicate rows", font_family="SF regular"),
+                            leading=ft.Icon(ft.Icons.COPY),
+                            on_click=lambda _: self._create_duplicate_rows_table(),
+                        ),
+                        ft.Divider(),
+                        ft.MenuItemButton(
+                            content=ft.Text("Remove NaN rows", font_family="SF regular"),
+                            leading=ft.Icon(ft.Icons.DELETE),
+                            style=ft.ButtonStyle(
+                                bgcolor={ft.ControlState.HOVERED: ft.Colors.RED}
+                            ),
+                            on_click=lambda e: self._drop_nan_rows(e.control),
+                        ),
+                        ft.MenuItemButton(
+                            content=ft.Text("Remove duplicates", font_family="SF regular"),
+                            leading=ft.Icon(ft.Icons.DELETE),
+                            style=ft.ButtonStyle(
+                                bgcolor={ft.ControlState.HOVERED: ft.Colors.RED}
+                            ),
+                            on_click=lambda e: self._drop_duplicate_rows(e.control),
+                        ),
+                        ft.MenuItemButton(
+                            content=ft.Text("Reset index", font_family="SF regular"),
+                            leading=ft.Icon(ft.Icons.RESTART_ALT),
+                            on_click=lambda e: self._reset_index(e.control),
+                        ),
+                    ]
+                )
+            ]
         )
-        self.custom_describe_btn = ft.FilledButton(
-            text="Custom describe",
-            icon=ft.Icons.ANALYTICS,
-            expand=1,
-            on_click=lambda _: self._create_custom_datatable(
-                self.parent.dataset.custom_describe(),
-                "Custom describe",
-            ),
-            style=ft.ButtonStyle(
-                shape=ft.RoundedRectangleBorder(radius=8),
-                elevation=5,
-                text_style=ft.TextStyle(font_family="SF regular"),
-            )
-        )
-        self.missing_percent_btn = ft.FilledButton(
-            text="Missing values table",
-            icon=ft.Icons.ANALYTICS,
-            expand=1,
-            on_click=lambda _: self._create_custom_datatable(
-                self.parent.dataset.calculate_missing_percent(),
-                "Missing values percentage",
-            ),
+        self.export_csv_button = ft.FilledButton(
+            text="Export CSV",
+            icon=ft.Icons.FILE_DOWNLOAD,
+            height=40,
+            on_click=self._export_csv,
             style=ft.ButtonStyle(
                 shape=ft.RoundedRectangleBorder(radius=8),
                 elevation=5,
@@ -476,11 +959,10 @@ class Home:
         self.display_tables_options_row = ft.Row(
             visible=False,
             controls=[
-                ft.Text("Options:", font_family="SF thin", size=20, expand=1),
-                self.browse_dataset_btn,
-                self.pandas_describe_btn,
-                self.custom_describe_btn,
-                self.missing_percent_btn
+                ft.Text("Tools:", font_family="SF thin", size=16, expand=1),
+                self.export_csv_button,
+                display_options_menu,
+                data_quality_menu
             ]
         )
         self.datatable_container = ft.Container(margin=ft.margin.all(15), height=600)
