@@ -93,6 +93,7 @@ class Home:
             shift_enter=False,
             multiline=False,
             autofocus=True,
+            dense=True,
             label_style=ft.TextStyle(font_family="SF regular"),
             hint_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.InputFilter(r"^(?!\d).*$"),
@@ -152,7 +153,6 @@ class Home:
         elif self.current_display_mode == "browse":
             self._create_dataset_browser_table(self.current_display_page)
 
-    # ---- DRY helpers for building paginated tables ----
     def _make_datatable_columns(self, df: pd.DataFrame) -> list[ft.DataColumn]:
         """Return DataTable column definitions for a given dataframe.
 
@@ -240,6 +240,74 @@ class Home:
             rows.append(ft.DataRow(cells=[first_cell, *other_cells]))
         return rows
 
+    def _jump_to_page(self, page_field: ft.TextField, df: pd.DataFrame, title: str) -> None:
+        """Jump to a specific page based on user input."""
+        try:
+            page = int(page_field.value) if page_field.value else 1
+            page_size = 10
+            max_page = (len(df) - 1) // page_size + 1 if len(df) > 0 else 1
+            
+            if page < 1 or page > max_page:
+                self.parent.page.open(
+                    ft.SnackBar(ft.Text(f"Page must be between 1 and {max_page}", font_family="SF regular"))
+                )
+                return
+            
+            self._create_paginated_table(df, title, page)
+        except ValueError:
+            self.parent.page.open(
+                ft.SnackBar(ft.Text("Invalid page number. Please enter a valid integer.", font_family="SF regular"))
+            )
+
+    def _filter_by_row_index(self, index_field: ft.TextField, df: pd.DataFrame, title: str) -> None:
+        """Filter rows by single index or range (e.g. '5' or '5-10')."""
+        try:
+            input_val = index_field.value.strip() if index_field.value else ""
+            if not input_val:
+                self.parent.page.open(
+                    ft.SnackBar(ft.Text("Please enter a row index or range (e.g., '5' or '5-10')", font_family="SF regular"))
+                )
+                return
+            
+            max_idx = len(df) - 1
+            
+            # Check if it's a range (contains dash)
+            if "-" in input_val:
+                parts = input_val.split("-")
+                if len(parts) != 2:
+                    raise ValueError("Range format must be 'start-end'")
+                
+                start = int(parts[0].strip())
+                end = int(parts[1].strip())
+                
+                if start < 0 or end < 0:
+                    raise ValueError("Indices must be non-negative")
+                if start > end:
+                    raise ValueError("Start index must be <= end index")
+                if start > max_idx:
+                    raise ValueError(f"Start index {start} exceeds max index {max_idx}")
+                
+                # Clamp end to max available index
+                end = min(end, max_idx)
+                filtered_df = df.iloc[start:end+1]
+            else:
+                # Single index
+                idx = int(input_val.strip())
+                if idx < 0 or idx > max_idx:
+                    raise ValueError(f"Index must be between 0 and {max_idx}")
+                
+                filtered_df = df.iloc[[idx]]
+            
+            # Display the filtered data as a one-off table (page 1)
+            self._create_paginated_table(filtered_df, f"{title} (Filtered by index)", 1)
+            index_field.value = ""
+            self.page.update()
+        
+        except ValueError as e:
+            self.parent.page.open(
+                ft.SnackBar(ft.Text(f"Invalid input: {str(e)}", font_family="SF regular"))
+            )
+
     def _create_paginated_table(self, df: pd.DataFrame, title: str, page: int = 1) -> None:
         """Generic paginated table builder used by several view functions.
 
@@ -283,9 +351,62 @@ class Home:
             )
         )
 
+        # Input fields for navigation
+        page_field = ft.TextField(
+            label="Go to page",
+            label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
+            hint_text="e.g., 2",
+            hint_style=ft.TextStyle(font_family="SF regular"),
+            width=120,
+            input_filter=ft.NumbersOnlyInputFilter(),
+            dense=True,
+            on_submit=lambda _: self._jump_to_page(page_field, df, title),
+        )
+
+        index_field = ft.TextField(
+            label="Filter by index",
+            label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
+            hint_text="e.g., 5 or 5-10",
+            hint_style=ft.TextStyle(font_family="SF regular"),
+            width=150,
+            dense=True,
+            on_submit=lambda _: self._filter_by_row_index(index_field, df, title),
+        )
+
         controls = [
             ft.Row([ft.Text(f"{title} - Page {page}/{max_page}", font_family="SF thin", size=24, expand=True, text_align="center"), refresh_btn]),
             ft.Divider(),
+            ft.Row(
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=10,
+                controls=[
+                    page_field,
+                    ft.FilledButton(
+                        text="Jump",
+                        icon=ft.Icons.ARROW_FORWARD,
+                        on_click=lambda _: self._jump_to_page(page_field, df, title),
+                        style=ft.ButtonStyle(
+                            shape=ft.RoundedRectangleBorder(radius=8),
+                            elevation=5,
+                            text_style=ft.TextStyle(font_family="SF regular"),
+                        )
+                    ),
+                    ft.VerticalDivider(),
+                    index_field,
+                    ft.FilledButton(
+                        text="Filter",
+                        icon=ft.Icons.FILTER_LIST,
+                        on_click=lambda _: self._filter_by_row_index(index_field, df, title),
+                        style=ft.ButtonStyle(
+                            shape=ft.RoundedRectangleBorder(radius=8),
+                            elevation=5,
+                            text_style=ft.TextStyle(font_family="SF regular"),
+                        )
+                    ),
+                ]
+            ),
             ft.Row(controls=[datatable], scroll=ft.ScrollMode.AUTO),
             ft.Row(
                 alignment=ft.MainAxisAlignment.CENTER,
