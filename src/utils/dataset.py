@@ -110,6 +110,15 @@ class DataSet:
         except Exception as e:
             print(e)
             return False
+        
+    def get_unique_values(self, column: str) -> list[Any] | None:
+        try:
+            if column in self.df.columns:
+                return self.df[column].unique().tolist()
+            return None
+        except Exception as e:
+            print(e)
+            return None
     
     def rename_column(self, current_column: str, new_column: str) -> bool:
         try:
