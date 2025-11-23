@@ -27,6 +27,7 @@ class Home:
         try:
             if e.files:
                 self.parent.dataset = DataSet(e.files[0].path)
+                self.parent.reset_tabs()
                 self.dataset_path_field.value = e.files[0].path
                 self.display_tables_options_row.visible = True
                 self.close_dataset_btn.visible = True
@@ -668,6 +669,7 @@ class Home:
         self.page.navigation_bar.destinations[2].disabled = True
         self.current_display_mode = None
         self.current_display_page = 1
+        self.parent.reset_tabs()
         self.page.update()
 
     def _create_dataset_browser_table(self, page: int = 1) -> None:

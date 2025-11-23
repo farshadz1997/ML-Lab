@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class BarChart(BaseChart):
+class HistogramChart(BaseChart):
     df: DataFrame
     parent: DataScience
     page: ft.Page
@@ -21,29 +21,45 @@ class BarChart(BaseChart):
     def __post_init__(self):
         super().__init__()
     
-    def _xaxis_on_change(self, e: ft.ControlEvent) -> None:
-        if self.y_dropdown.value and e.control.value == self.y_dropdown.value:
-            self.y_dropdown.value = "None"
+    def _chart_size_on_blur(self, e: ft.ControlEvent) -> None:
+        if e.control.value is None:
+            e.control.value = 10
             self.page.update()
+            return
+        elif isinstance(e.control.value, str):
+            try:
+                if int(e.control.value) < 5:
+                    e.control.value = 10
+                    self.page.update()
+            except ValueError:
+                e.control.value = 10
+                self.page.update()
     
-    def _yaxis_on_change(self, e: ft.ControlEvent) -> None:
-        if self.x_dropdown.value and e.control.value == self.x_dropdown.value:
-            self.x_dropdown.value = "None"
+    def _bins_on_blur(self, e: ft.ControlEvent) -> None:
+        if e.control.value is None or e.control.value == "":
+            e.control.value = "10"
             self.page.update()
+            return
+        elif isinstance(e.control.value, str):
+            try:
+                if int(e.control.value) < 1:
+                    e.control.value = "10"
+                    self.page.update()
+            except ValueError:
+                e.control.value = "10"
+                self.page.update()
     
     def build_chart_control(self) -> ft.Card:
-        if any(selection.value in (None, "None") for selection in [self.x_dropdown, self.y_dropdown]):
-            self.page.open(ft.SnackBar(ft.Text("X, Y is required", font_family="SF regular")))
+        if self.x_dropdown.value in (None, "None"):
+            self.page.open(ft.SnackBar(ft.Text("X axis is required", font_family="SF regular")))
             return
         
         x = self.x_dropdown.value
-        y = self.y_dropdown.value
+        bins = int(self.bins_field.value) if self.bins_field.value else 10
         
         palette = self.parent.palette_dropdown.value if self.parent.palette_dropdown.value else "deep"
         context = self.parent.context_dropdown.value if self.parent.context_dropdown.value else "notebook"
         style = self.parent.style_dropdown.value if self.parent.style_dropdown.value else "whitegrid"
-        
-        local_df = self.df.groupby(x).agg(result=(y, self.aggregated_by.value)).sort_values(by="result", ascending=False)
         
         sns.set_theme(style=style, context=context, palette=palette)
         
@@ -63,15 +79,13 @@ class BarChart(BaseChart):
                 int(self.parent.chart_height.value)
             )
         )
-        
-        ax = sns.barplot(
-            x=local_df["result"], y=local_df.index, hue=local_df.index,
-            palette=palette,
+        ax = sns.histplot(
+            self.df[x], bins=bins, kde=self.kde_switch.value,
             legend="auto" if self.parent.show_legend_switch.value else False
         )
-        ax.set_title(f"Bar chart: {y} by {x} ({self.aggregated_by.value})", fontsize=title_font_size)
+        ax.set_title(f"Histogram of {x}", fontsize=title_font_size)
         ax.set_xlabel(x, fontsize=axes_font_size)
-        ax.set_ylabel(y, fontsize=axes_font_size)
+        ax.set_ylabel("Frequency", fontsize=axes_font_size)
         ax.grid(visible=True, axis="y")
         
         controls = [
@@ -85,44 +99,35 @@ class BarChart(BaseChart):
     
     def build_chart_settings_control(self) -> ft.Card:
         numeric_cols = self.df.select_dtypes(include=["number"]).columns.tolist()
-        categorical_cols = self.df.columns[self.df.nunique() <= 30].tolist()
-        object_cols = self.df.select_dtypes(include=["object"]).columns.tolist()
-        categorical_cols = list(set(categorical_cols + object_cols))
         
         self.x_dropdown = ft.Dropdown(
-            label="X (Category)",
+            label="X",
             expand=True,
             label_style=ft.TextStyle(font_family="SF regular"),
             text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("None", text_style=ft.TextStyle(font_family="SF regular")),
-                *[ft.DropdownOption(
-                    col, text_style=ft.TextStyle(font_family="SF regular")
-                ) for col in categorical_cols]
-            ],
-            on_change=self._xaxis_on_change
-        )
-        
-        self.y_dropdown = ft.Dropdown(
-            label="Y (Numeric)",
-            expand=True,
-            label_style=ft.TextStyle(font_family="SF regular"),
-            text_style=ft.TextStyle(font_family="SF regular"),
-            options=[
-                ft.DropdownOption("None", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("None"),
                 *[ft.DropdownOption(
                     col, text_style=ft.TextStyle(font_family="SF regular")
                 ) for col in numeric_cols]
             ],
-            on_change=self._yaxis_on_change
         )
         
-        self.aggregated_by = ft.Dropdown(
-            label="Aggregated by",
-            value="sum",
+        self.bins_field = ft.TextField(
+            value="10",
+            label="Bins",
             expand=True,
             label_style=ft.TextStyle(font_family="SF regular"),
-            options=[ft.DropdownOption(agg, text_style=ft.TextStyle(font_family="SF regular")) for agg in ["sum", "count", "mean", "median", "min", "max"]]
+            text_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
+            on_blur=self._bins_on_blur
+        )
+        
+        self.kde_switch = ft.Switch(
+            value=False,
+            label="KDE",
+            label_style=ft.TextStyle(font_family="SF regular"),
+            label_position=ft.LabelPosition.RIGHT,
         )
         
         return ft.Card(
@@ -136,12 +141,12 @@ class BarChart(BaseChart):
                     horizontal_alignment=ft.CrossAxisAlignment.START,
                     controls=[
                         ft.Row(
-                            controls=[ft.Text("Bar chart configs", font_family="SF thin", size=24, text_align="center", expand=True)]
+                            controls=[ft.Text("Histogram configs", font_family="SF thin", size=24, text_align="center", expand=True)]
                         ),
                         ft.Divider(),
                         self.x_dropdown,
-                        self.y_dropdown,
-                        self.aggregated_by,
+                        self.bins_field,
+                        self.kde_switch,
                     ]
                 )
             )
