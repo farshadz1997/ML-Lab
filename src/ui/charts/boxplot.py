@@ -63,7 +63,7 @@ class BoxPlotChart(BaseChart):
         )
         ax = sns.boxplot(
             self.df, x=x, y=y, hue=y if x is not None else None,
-            palette=palette,
+            palette=palette if all(axis is not None for axis in [x, y]) else None,
             legend="auto" if self.parent.show_legend_switch.value else False
         )
         if all(selection not in (None, "None") for selection in [x, y]):
