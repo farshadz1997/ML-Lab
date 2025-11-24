@@ -79,7 +79,7 @@ class HeatmapChart(BaseChart):
             corr_matrix, 
             annot=self.parent.display_info.value,
             fmt=".2f",
-            # cmap=palette,
+            cmap="coolwarm",
             cbar=self.parent.show_legend_switch.value,
             square=True,
             linewidths=0.5
