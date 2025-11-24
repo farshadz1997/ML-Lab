@@ -40,20 +40,20 @@ class DataScience:
             if self.chart_card in self.column.controls:
                 self.column.controls.remove(self.chart_card)
             e.control.disabled = True
+            self.page.navigation_bar.disabled = True
             self.page.update()
             chart_card = chart_function()
             if chart_card is None:
-                e.control.disabled = False
-                self.page.update()
                 return
             self.chart_card = chart_card
-            e.control.disabled = False
             self.column.controls.append(self.chart_card)
             self.page.update()
         except Exception as e:
-            e.control.disabled = False
-            self.page.update()
             self.page.open(ft.SnackBar(ft.Text(e, font_family="SF regular")))
+        finally:
+            e.control.disabled = False
+            self.page.navigation_bar.disabled = False
+            self.page.update()
     
     def _update_viz_options(self, viz_type: VIZ_TYPE) -> None:
         """Update available options based on visualization type"""
@@ -322,6 +322,7 @@ class DataScience:
                 ft.Row([ft.Text("Data Visualization & Analysis", expand=True, size=30, font_family="SF thin", text_align="center")]),
                 ft.Divider(),
                 ft.Row(
+                    vertical_alignment=ft.CrossAxisAlignment.START,
                     controls=[
                         ft.Card(
                             expand=2,
@@ -356,7 +357,15 @@ class DataScience:
                                                 self.axes_size,
                                             ]
                                         ),
-                                        ft.Row([self.display_info, self.show_legend_switch, self.original_size_switch], expand=True)
+                                        ft.Row(
+                                            controls=[
+                                                self.display_info,
+                                                self.show_legend_switch,
+                                                self.original_size_switch
+                                            ],
+                                            expand=True,
+                                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                                        )
                                     ]
                                 )
                             )
