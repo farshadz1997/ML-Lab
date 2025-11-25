@@ -165,13 +165,6 @@ class DataScience:
                 self.page.update()
     
     def build_controls(self) -> ft.Column:
-        if self.column and self.parent.dataset and self.chart_card in self.column.controls:
-            # remove chart from controls to improve speed while page being updated
-            self.column.controls.remove(self.chart_card)
-            self.chart_card = ft.Card(visible=False)
-            self.column.controls.append(self.chart_card)
-            return self.column
-        
         self.viz_type_dropdown = ft.Dropdown(
             value="Histogram",
             expand=True,

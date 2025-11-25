@@ -52,10 +52,6 @@ class AppLayout:
         self.page.controls = [self.home.build_controls()]
         self.page.update()
         
-    def reset_tabs(self):
-        self.data_science.column = None
-        self.model_factory.column = None
-    
     def on_navigation_change(self, e: ft.ControlEvent):
         nav_index = int(e.data)
         if nav_index == 0:
