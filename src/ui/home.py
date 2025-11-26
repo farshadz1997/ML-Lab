@@ -748,6 +748,34 @@ class Home:
 
         _render(1)
     
+    def _export_ydata_profiling(self) -> None:
+        try:
+            dialog = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Exporting Ydata-profiling Report", font_family="SF regular"),
+                content=ft.Row([ft.ProgressRing(visible=True)], expand=True, alignment=ft.MainAxisAlignment.CENTER),
+                actions_alignment=ft.MainAxisAlignment.CENTER,
+            )
+            ok_btn = ft.FilledTonalButton(
+                text="OK",
+                on_click=lambda e: self.page.close(dialog),
+                disabled=True,
+                style=ft.ButtonStyle(
+                    shape=ft.RoundedRectangleBorder(radius=8),
+                    elevation=5,
+                    text_style=ft.TextStyle(font_family="SF regular"),
+                )
+            )
+            dialog.actions = [ok_btn]
+            self.page.open(dialog)
+            report_path = self.parent.dataset.export_ydata_profiling_report()
+            dialog.content = ft.Text(f"Ydata-profiling report exported to {report_path}", font_family="SF regular")
+        except Exception as e:
+            dialog.content = ft.Text(f"Failed to export report: {e}", font_family="SF regular")
+        finally:
+            ok_btn.disabled = False
+            self.page.update()
+        
     def build_controls(self) -> ft.Column:
         if self.column:
             return self.column
@@ -878,6 +906,29 @@ class Home:
                 )
             ]
         )
+        auto_eda_menu = ft.MenuBar(
+            controls=[
+                ft.SubmenuButton(
+                    content=ft.Text(
+                        value="Auto EDA",
+                        font_family="SF regular",
+                    ),
+                    leading=ft.Icon(ft.Icons.MENU),
+                    style=ft.ButtonStyle(
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                        elevation=5,
+                        text_style=ft.TextStyle(font_family="SF regular"),
+                    ),
+                    controls=[
+                        ft.MenuItemButton(
+                            content=ft.Text("Ydata-profiling", font_family="SF regular"),
+                            leading=ft.Icon(ft.Icons.ANALYTICS),
+                            on_click=lambda _: self._export_ydata_profiling(),
+                        )
+                    ],
+                )
+            ]
+        )
         self.export_csv_button = ft.FilledButton(
             text="Export CSV",
             icon=ft.Icons.FILE_DOWNLOAD,
@@ -894,6 +945,7 @@ class Home:
             controls=[
                 ft.Text("Tools:", font_family="SF thin", size=16, expand=1),
                 self.export_csv_button,
+                auto_eda_menu,
                 display_options_menu,
                 data_quality_menu
             ]

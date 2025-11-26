@@ -4,6 +4,7 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 from pandas._typing import Dtype
+from ydata_profiling import ProfileReport
 
 
 @dataclass
@@ -132,6 +133,12 @@ class DataSet:
         
     def reset_index(self) -> None:
         self.df.reset_index(drop=True, inplace=True)
+        
+    def export_ydata_profiling_report(self) -> str:
+        path = Path(self.dataset_path).parent.absolute()
+        profile = ProfileReport(self.df, title="YData Profiling Report")
+        profile.to_file(path / f"{self.file_name}-ydata-profiling-report.html")
+        return str(path / f"{self.file_name}-ydata-profiling-report.html")
     
     def export_csv(self) -> str:
         path = Path(self.dataset_path).parent.absolute()
