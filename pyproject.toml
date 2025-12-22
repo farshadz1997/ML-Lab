@@ -10,10 +10,14 @@ authors = [
 dependencies = [
   "flet[all]==0.28.3",
   "imbalanced-learn>=0.12.4",
+  "kaleido>=1.2.0",
   "matplotlib>=3.9.4",
   "pandas>=2.3.3",
   "plotly>=6.4.0",
   "scikit-learn>=1.6.1",
+  "seaborn>=0.13.2",
+  "setuptools>=80.9.0",
+  "ydata-profiling>=4.17.0",
 ]
 
 [tool.flet]
