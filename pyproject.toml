@@ -11,6 +11,7 @@ dependencies = [
   "flet[all]==0.28.3",
   "imbalanced-learn>=0.12.4",
   "kaleido>=1.2.0",
+  "kneed>=0.8.5",
   "matplotlib>=3.9.4",
   "pandas>=2.3.3",
   "plotly>=6.4.0",

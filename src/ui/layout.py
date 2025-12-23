@@ -40,7 +40,7 @@ class AppLayout:
             on_change=self.on_navigation_change,
             destinations=[
                 ft.NavigationBarDestination(icon=ft.Icons.DATA_OBJECT, label="Dataset overview"),
-                ft.NavigationBarDestination(icon=ft.Icons.ANALYTICS, label="Data Science", disabled=True),
+                ft.NavigationBarDestination(icon=ft.Icons.ANALYTICS, label="Data visualization", disabled=True),
                 ft.NavigationBarDestination(
                     icon=ft.Icons.MODEL_TRAINING,
                     label="Model Factory",

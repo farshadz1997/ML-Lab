@@ -4,25 +4,63 @@ from pathlib import Path
 import flet as ft
 import pandas as pd
 import numpy as np
-from typing import List, Literal, Any, TYPE_CHECKING
+from typing import List, Literal, Any, TYPE_CHECKING, Type, Dict
 from dataclasses import dataclass, field
 from helpers import resource_path
-from .models import LinearRegressionModel
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, GradientBoostingClassifier, GradientBoostingRegressor
-from sklearn.svm import SVC, SVR
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, mean_squared_error, r2_score
+from .models import (
+    LinearRegressionModel,
+    LogisticRegressionModel,
+    RandomForestModel,
+    GradientBoostingModel,
+    SVMModel,
+    KNNModel,
+    DecisionTreeModel,
+    DecisionTreeRegressorModel,
+    KMeansModel,
+    MiniBatchKMeansModel,
+    HierarchicalClusteringModel,
+    DBSCANModel,
+    HDBSCANModel,
+    GaussianMixtureModel,
+    MeanShiftModel,
+    AffinityPropagationModel,
+    ElbowLocatorModel,
+)
 import json
 
 if TYPE_CHECKING:
     from .layout import AppLayout
 
 MODEL_TYPE = Literal["Classification", "Regression"]
-CLASSIFIER = Literal["logistic_regression", "random_forest", "gradient_boosting", "svm"]
-REGRESSOR = Literal["linear_regression", "random_forest", "gradient_boosting", "svm"]
-MODELS = Literal["linear_regression", "logistic_regression", "random_forest", "gradient_boosting", "svm", "knn"]
+CLASSIFIER = Literal["logistic_regression", "random_forest", "gradient_boosting", "svm", "knn", "decision_tree"]
+REGRESSOR = Literal["linear_regression", "random_forest", "gradient_boosting", "svm", "decision_tree_regressor"]
+CLUSTERER = Literal["kmeans", "minibatch_kmeans", "hierarchical", "dbscan", "hdbscan", "gaussian_mixture", "mean_shift", "affinity_propagation", "elbow_locator"]
+MODELS = Literal["linear_regression", "logistic_regression", "random_forest", "gradient_boosting", "svm", "knn", "decision_tree", "decision_tree_regressor", "kmeans", "minibatch_kmeans", "hierarchical", "dbscan", "hdbscan", "gaussian_mixture", "mean_shift", "affinity_propagation", "elbow_locator"]
+
+# Model registry for dynamic instantiation (Factory Pattern)
+# Maps model name to model class; populated as new models are implemented
+MODEL_REGISTRY: Dict[str, Type] = {
+    'linear_regression': LinearRegressionModel,
+    # Classification models
+    'logistic_regression': LogisticRegressionModel,
+    'random_forest': RandomForestModel,
+    'gradient_boosting': GradientBoostingModel,
+    'svm': SVMModel,
+    'knn': KNNModel,
+    'decision_tree': DecisionTreeModel,
+    # Regression models
+    'decision_tree_regressor': DecisionTreeRegressorModel,
+    # Clustering models
+    'kmeans': KMeansModel,
+    'minibatch_kmeans': MiniBatchKMeansModel,
+    'hierarchical': HierarchicalClusteringModel,
+    'dbscan': DBSCANModel,
+    'hdbscan': HDBSCANModel,
+    'gaussian_mixture': GaussianMixtureModel,
+    'mean_shift': MeanShiftModel,
+    'affinity_propagation': AffinityPropagationModel,
+    'elbow_locator': ElbowLocatorModel,
+}
 
 CLASSIFICATION_MODELS_OPTIONS = [
     ft.DropdownOption("logistic_regression", text="Logistic regression", text_style=ft.TextStyle(font_family="SF regular")),
@@ -30,19 +68,25 @@ CLASSIFICATION_MODELS_OPTIONS = [
     ft.DropdownOption("gradient_boosting", text="Gradient boosting", text_style=ft.TextStyle(font_family="SF regular")),
     ft.DropdownOption("svm", text="SVM", text_style=ft.TextStyle(font_family="SF regular")),
     ft.DropdownOption("knn", text="KNN", text_style=ft.TextStyle(font_family="SF regular")),
+    ft.DropdownOption("decision_tree", text="Decision Tree", text_style=ft.TextStyle(font_family="SF regular")),
 ]
 REGRESSION_MODELS_OPTIONS = [
     ft.DropdownOption("linear_regression", text="Linear regression", text_style=ft.TextStyle(font_family="SF regular")),
     ft.DropdownOption("random_forest", text="Random forest", text_style=ft.TextStyle(font_family="SF regular")),
     ft.DropdownOption("gradient_boosting", text="Gradient boosting", text_style=ft.TextStyle(font_family="SF regular")),
     ft.DropdownOption("svm", text="SVM", text_style=ft.TextStyle(font_family="SF regular")),
+    ft.DropdownOption("decision_tree_regressor", text="Decision Tree", text_style=ft.TextStyle(font_family="SF regular")),
 ]
 CLUSTERING_MODELS_OPTIONS = [
     ft.DropdownOption("kmeans", text="K-Means", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("minibatch-kmeans", text="MiniBatch K-Means", text_style=ft.TextStyle(font_family="SF regular")),
+    ft.DropdownOption("minibatch_kmeans", text="MiniBatch K-Means", text_style=ft.TextStyle(font_family="SF regular")),
     ft.DropdownOption("hierarchical", text="Hierarchical Clustering", text_style=ft.TextStyle(font_family="SF regular")),
     ft.DropdownOption("dbscan", text="DBSCAN", text_style=ft.TextStyle(font_family="SF regular")),
     ft.DropdownOption("hdbscan", text="HDBSCAN", text_style=ft.TextStyle(font_family="SF regular")),
+    ft.DropdownOption("gaussian_mixture", text="Gaussian Mixture", text_style=ft.TextStyle(font_family="SF regular")),
+    ft.DropdownOption("mean_shift", text="Mean Shift", text_style=ft.TextStyle(font_family="SF regular")),
+    ft.DropdownOption("affinity_propagation", text="Affinity Propagation", text_style=ft.TextStyle(font_family="SF regular")),
+    ft.DropdownOption("elbow_locator", text="Elbow Locator", text_style=ft.TextStyle(font_family="SF regular")),
 ]
 
 @dataclass
@@ -66,6 +110,7 @@ class ModelFactory:
             self.model_dropdown.options = CLASSIFICATION_MODELS_OPTIONS
             self.target_column_dropdown.disabled = False
             self.test_size_field.disabled = False
+            self._model_on_change("logistic_regression")
         else:
             self.task_type_dropdown.options = [ft.DropdownOption("Clustering", text_style=ft.TextStyle(font_family="SF regular"))]
             self.task_type_dropdown.value = "Clustering"
@@ -73,6 +118,7 @@ class ModelFactory:
             self.model_dropdown.options = CLUSTERING_MODELS_OPTIONS
             self.target_column_dropdown.disabled = True
             self.test_size_field.disabled = True
+            self._model_on_change("kmeans")
         self.model_dropdown.value = self.model_dropdown.options[0].key
         self.page.update()
     
@@ -85,29 +131,74 @@ class ModelFactory:
         """Update available models based on task type"""
         if task_type == "Classification":
             self.model_dropdown.options = CLASSIFICATION_MODELS_OPTIONS
+            self._model_on_change("logistic_regression")
         else:
             self.model_dropdown.options = REGRESSION_MODELS_OPTIONS
+            self._model_on_change("linear_regression")
         self.model_dropdown.value = self.model_dropdown.options[0].key
         self.page.update()
         
-    def _model_on_change(self, model_name: MODELS):
-        if self.config_card in self.column.controls[2].controls:
-            self.column.controls[2].controls.remove(self.config_card)
-        if model_name == "linear_regression":
-            model = LinearRegressionModel(self, self.parent.dataset.df)
-            self.config_card = model.build_model_control()
-        elif model_name == "logistic_regression":
-            pass
-        elif model_name == "gradient_boosting":
-            pass
-        elif model_name == "random_forest":
-            pass
-        elif model_name == "svm":
-            pass
-        elif model_name == "knn":
-            pass
-        self.column.controls[2].controls.append(self.config_card)
-        self.page.update()
+    def _model_on_change(self, model_name: MODELS) -> None:
+        """
+        Load and display model-specific configuration card.
+        
+        Uses factory pattern to instantiate correct model class dynamically.
+        Replaces previous config card with new one.
+        
+        Args:
+            model_name: Name of selected model (e.g., "logistic_regression")
+        """
+        try:
+            # Remove previous config card if present
+            if (len(self.column.controls) > 2 and 
+                self.config_card in self.column.controls[2].controls):
+                self.column.controls[2].controls.remove(self.config_card)
+            
+            # Get model class from registry
+            model_class = MODEL_REGISTRY.get(model_name)
+            
+            if model_class is None:
+                # Model not yet implemented; show placeholder
+                placeholder = ft.Card(
+                    expand=1,
+                    content=ft.Container(
+                        expand=True,
+                        margin=ft.margin.all(15),
+                        content=ft.Column(
+                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                            mainaxis_alignment=ft.MainAxisAlignment.CENTER,
+                            controls=[
+                                ft.Text(
+                                    f"{model_name.replace('_', ' ').title()} - Coming Soon",
+                                    font_family="SF thin",
+                                    size=20,
+                                    text_align="center"
+                                ),
+                                ft.Text(
+                                    "This model is not yet implemented",
+                                    font_family="SF regular",
+                                    color=ft.Colors.GREY_700
+                                )
+                            ]
+                        )
+                    )
+                )
+                self.config_card = placeholder
+            else:
+                # Instantiate model and get configuration card
+                model_instance = model_class(self, self.parent.dataset.df)
+                self.config_card = model_instance.build_model_control()
+            
+            # Add new config card to column
+            if len(self.column.controls) > 2:
+                self.column.controls[2].controls.append(self.config_card)
+            
+            self.page.update()
+        
+        except Exception as e:
+            self.page.open(ft.SnackBar(
+                ft.Text(f"Error loading model: {str(e)}", font_family="SF regular")
+            ))
     
     def build_controls(self) -> ft.Column:
         numeric_cols = self.parent.dataset.df.select_dtypes(include=[np.number]).columns.tolist()
@@ -177,7 +268,7 @@ class ModelFactory:
             ]
         )
         
-        self.config_card = LinearRegressionModel(self, self.parent.dataset.df).build_model_control()
+        self.config_card = LogisticRegressionModel(self, self.parent.dataset.df).build_model_control()
         self.column = ft.Column(
             scroll=ft.ScrollMode.AUTO,
             horizontal_alignment=ft.CrossAxisAlignment.START,
@@ -190,7 +281,7 @@ class ModelFactory:
                     vertical_alignment=ft.CrossAxisAlignment.START,
                     controls=[
                         ft.Card(
-                            expand=2,
+                            expand=3,
                             content=ft.Container(
                                 margin=ft.margin.all(15),
                                 content=ft.Column(
