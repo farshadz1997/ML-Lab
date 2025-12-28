@@ -54,6 +54,12 @@ cd "ML-Lab"
 # Create virtual environment & Install dependencies
 uv sync
 
+# Activate virtual environment
+# On Windows:
+.venv\Scripts\activate
+# On macOS/Linux:
+source .venv/bin/activate
+
 # Run the app as a desktop application
 uv run src/main.py
 ```
