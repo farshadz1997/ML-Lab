@@ -1,81 +1,135 @@
-# MachineLearningModelFitAndEvaluation app
+# ML Model Lab
 
-## Run the app
+A comprehensive desktop application for exploring datasets, training machine learning models, and evaluating their performance. Built with Python and Flet for a beautiful, cross-platform UI.
 
-### uv
+## Features
 
-Run as a desktop app:
+- **Dataset Management**
+  - Load and explore CSV files with intuitive data browsing
+  - View dataset statistics and summary information
+  - Edit individual cell values directly in the table
+  - Rename and drop columns
+  - Handle missing values (detect NaN rows, drop duplicates)
+  - Export modified datasets with timestamps
+  - Filter and search by row index or range
 
-```
-uv run flet run
-```
+- **Data Visualization**
+  - Interactive charts: scatter plots, histograms, bar charts, box plots, pie charts, heatmaps
+  - Customizable visualizations based on selected columns
+  - Real-time chart generation
 
-Run as a web app:
+- **Machine Learning Models**
+  - **Classification Models**: Logistic Regression, Decision Tree, Random Forest, SVM, KNN, Gradient Boosting
+  - **Regression Models**: Linear Regression, Decision Tree Regressor, Random Forest
+  - **Clustering Models**: K-Means, DBSCAN, Hierarchical Clustering, Gaussian Mixture Models, Mean Shift, HDBSCAN, Affinity Propagation, MiniBatch K-Means
+  - **Dimensionality Reduction**: Elbow locator for optimal cluster selection
 
-```
-uv run flet run --web
-```
+- **Model Configuration**
+  - Flexible hyperparameter tuning with validation
+  - Multiple scaling options: Standard Scaler, MinMax Scaler, None
+  - Configurable train/test split for supervised learning
+  - Automatic feature selection
 
-### Poetry
+- **Model Evaluation**
+  - Classification metrics: Accuracy, Precision, Recall, F1-Score, Confusion Matrix
+  - Regression metrics: R² Score, Mean Squared Error, Mean Absolute Error
+  - Clustering metrics: Silhouette Score, Davies-Bouldin Index, Calinski-Harabasz Index
+  - Detailed results with copy functionality
 
-Install dependencies from `pyproject.toml`:
+- **Data Profiling**
+  - YData Profiling integration for comprehensive dataset reports
+  - Export HTML reports for detailed analysis
 
-```
-poetry install
-```
+## Installation
 
-Run as a desktop app:
+### Using uv (Recommended)
 
-```
-poetry run flet run
-```
+First, ensure you have [uv](https://github.com/astral-sh/uv) installed.
 
-Run as a web app:
+```bash
+# Clone the repository
+git clone https://github.com/farshadz1997/ML-Lab.git
+cd "Machine learning model fit and evaluation"
 
-```
-poetry run flet run --web
-```
+# Create virtual environment & Install dependencies
+uv sync
 
-For more details on running the app, refer to the [Getting Started Guide](https://flet.dev/docs/getting-started/).
-
-## Build the app
-
-### Android
-
-```
-flet build apk -v
-```
-
-For more details on building and signing `.apk` or `.aab`, refer to the [Android Packaging Guide](https://flet.dev/docs/publish/android/).
-
-### iOS
-
-```
-flet build ipa -v
-```
-
-For more details on building and signing `.ipa`, refer to the [iOS Packaging Guide](https://flet.dev/docs/publish/ios/).
-
-### macOS
-
-```
-flet build macos -v
+# Run the app as a desktop application
+uv run src/main.py
 ```
 
-For more details on building macOS package, refer to the [macOS Packaging Guide](https://flet.dev/docs/publish/macos/).
+### Using pip
 
-### Linux
+```bash
+# Clone the repository
+git clone https://github.com/farshadz1997/ML-Lab.git
+cd "Machine learning model fit and evaluation"
 
+# Create a virtual environment (recommended)
+python -m venv venv
+
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the app as a desktop application
+flet run
+
+# Or run as a web application
+flet run --web
 ```
-flet build linux -v
-```
 
-For more details on building Linux package, refer to the [Linux Packaging Guide](https://flet.dev/docs/publish/linux/).
+## Quick Start
+
+1. **Load a Dataset**: Click "Open Dataset" and select a CSV file
+2. **Explore Data**: Browse the dataset, view statistics, check for missing values
+3. **Select Model**: Navigate to the Model Training tab
+4. **Configure Hyperparameters**: Adjust model settings as needed
+5. **Train & Evaluate**: Click "Train and evaluate model" to see results
+6. **Visualize**: Use the Data Visualization tab to create charts
+
+## Requirements
+
+- Python 3.9+
+- See `requirements.txt` for all dependencies
+
+## Building for Distribution
 
 ### Windows
 
-```
+```bash
 flet build windows -v
 ```
 
 For more details on building Windows package, refer to the [Windows Packaging Guide](https://flet.dev/docs/publish/windows/).
+
+## Project Structure
+
+```
+src/
+├── main.py                 # Application entry point
+├── core/
+│   └── dataset.py         # Dataset handling and operations
+├── ui/
+│   ├── layout.py          # Main UI layout
+│   ├── data_visualization.py
+│   ├── dataset_explorer.py # Dataset exploration interface
+│   ├── model_factory.py    # Model training interface
+│   ├── charts/            # Chart implementations
+│   └── models/            # ML model wrappers
+└── utils/
+    └── model_utils.py     # Model utilities and metrics
+```
+
+## License
+
+This project is licensed under the MIT License - see LICENSE file for details.
+
+## Contributing
+
+Contributions are welcome! Feel free to submit issues and pull requests.

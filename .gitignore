@@ -169,3 +169,7 @@ cython_debug/
 
 # Flet
 storage/
+
+# Custom
+*.ipynb
+*.csv
