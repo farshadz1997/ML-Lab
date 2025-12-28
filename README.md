@@ -60,8 +60,10 @@ uv sync
 # On macOS/Linux:
 source .venv/bin/activate
 
+cd src
+
 # Run the app as a desktop application
-uv run src/main.py
+uv run main.py
 ```
 
 ### Using pip
@@ -83,11 +85,10 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the app as a desktop application
-flet run
+cd src
 
-# Or run as a web application
-flet run --web
+# Run the app as a desktop application
+python main.py
 ```
 
 ## Quick Start
