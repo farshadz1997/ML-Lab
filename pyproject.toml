@@ -1,7 +1,7 @@
 [project]
 name = "ML-Lab"
 version = "0.1.0"
-description = ""
+description = "An application to help Data scientists for visualization and testing models faster without coding"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
@@ -9,7 +9,6 @@ authors = [
 ]
 dependencies = [
   "flet[all]==0.28.3",
-  "imbalanced-learn>=0.12.4",
   "kneed>=0.8.5",
   "matplotlib>=3.9.4",
   "pandas>=2.3.3",
@@ -37,9 +36,12 @@ copyright = "Copyright (C) 2025 by Farshad Zargari"
 [tool.flet.app]
 path = "src"
 
-[tool.uv]
-dev-dependencies = [
-    "flet[all]==0.28.3",
+# [tool.uv] # deprecated
+# dev-dependencies = ["flet[all]==0.28.3"]
+
+[dependency-groups]
+dev = [
+  "flet[all]==0.28.3",
 ]
 
 [tool.poetry]
