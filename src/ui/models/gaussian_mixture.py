@@ -118,6 +118,7 @@ class GaussianMixtureModel:
         """Train Gaussian Mixture model and display evaluation results."""
         try:
             e.control.disabled = True
+            self.parent.disable_model_selection()
             disable_navigation_bar(self.parent.page)
             self.parent.page.update()
             
@@ -177,6 +178,7 @@ class GaussianMixtureModel:
             ))
         
         finally:
+            self.parent.enable_model_selection()
             self.train_btn.disabled = False
             self.parent.page.update()
     

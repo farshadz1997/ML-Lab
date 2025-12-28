@@ -134,6 +134,7 @@ class AffinityPropagationModel:
         """Train Affinity Propagation model and display evaluation results."""
         try:
             e.control.disabled = True
+            self.parent.disable_model_selection()
             disable_navigation_bar(self.parent.page)
             self.parent.page.update()
             
@@ -196,6 +197,7 @@ class AffinityPropagationModel:
             ))
         
         finally:
+            self.parent.enable_model_selection()
             self.train_btn.disabled = False
             self.parent.page.update()
     

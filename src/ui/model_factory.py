@@ -80,13 +80,13 @@ REGRESSION_MODELS_OPTIONS = [
 CLUSTERING_MODELS_OPTIONS = [
     ft.DropdownOption("kmeans", text="K-Means", text_style=ft.TextStyle(font_family="SF regular")),
     ft.DropdownOption("minibatch_kmeans", text="MiniBatch K-Means", text_style=ft.TextStyle(font_family="SF regular")),
+    ft.DropdownOption("elbow_locator", text="Elbow Locator", text_style=ft.TextStyle(font_family="SF regular")),
     ft.DropdownOption("hierarchical", text="Hierarchical Clustering", text_style=ft.TextStyle(font_family="SF regular")),
     ft.DropdownOption("dbscan", text="DBSCAN", text_style=ft.TextStyle(font_family="SF regular")),
     ft.DropdownOption("hdbscan", text="HDBSCAN", text_style=ft.TextStyle(font_family="SF regular")),
     ft.DropdownOption("gaussian_mixture", text="Gaussian Mixture", text_style=ft.TextStyle(font_family="SF regular")),
     ft.DropdownOption("mean_shift", text="Mean Shift", text_style=ft.TextStyle(font_family="SF regular")),
     ft.DropdownOption("affinity_propagation", text="Affinity Propagation", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("elbow_locator", text="Elbow Locator", text_style=ft.TextStyle(font_family="SF regular")),
 ]
 
 @dataclass
@@ -94,9 +94,6 @@ class ModelFactory:
     parent: AppLayout
     page: ft.Page
     column: ft.Column | None = None
-    model = None
-    scaler = None
-    label_encoders = {}
     
     def _learning_type_on_change(self, e: ft.ControlEvent) -> None:
         learning_type = e.control.value
@@ -199,6 +196,19 @@ class ModelFactory:
             self.page.open(ft.SnackBar(
                 ft.Text(f"Error loading model: {str(e)}", font_family="SF regular")
             ))
+            
+    def disable_model_selection(self) -> None:
+        self.learning_type_dropdown.disabled = True
+        self.task_type_dropdown.disabled = True
+        self.model_dropdown.disabled = True
+        self.page.update()
+            
+    def enable_model_selection(self) -> None:
+        self.learning_type_dropdown.disabled = False
+        if self.task_type_dropdown.value != "Clustering":
+            self.task_type_dropdown.disabled = False
+        self.model_dropdown.disabled = False
+        self.page.update()
     
     def build_controls(self) -> ft.Column:
         numeric_cols = self.parent.dataset.df.select_dtypes(include=[np.number]).columns.tolist()

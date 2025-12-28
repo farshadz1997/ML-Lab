@@ -218,6 +218,7 @@ class DecisionTreeRegressorModel:
         """Train decision tree regression model and display evaluation results."""
         try:
             e.control.disabled = True
+            self.parent.disable_model_selection()
             self.parent.page.update()
             
             # Check data quality first
@@ -286,6 +287,7 @@ class DecisionTreeRegressorModel:
             ))
         
         finally:
+            self.parent.enable_model_selection()
             self.train_btn.disabled = False
             self.parent.page.update()
     

@@ -76,6 +76,7 @@ class DBSCANModel:
         """Train DBSCAN model and display evaluation results."""
         try:
             e.control.disabled = True
+            self.parent.enable_model_selection()
             disable_navigation_bar(self.parent.page)
             self.parent.page.update()
             
@@ -109,6 +110,7 @@ class DBSCANModel:
                 eps=float(self.eps_field.value),
                 min_samples=int(self.min_samples_field.value),
                 metric=self.metric_dropdown.value,
+                p=None if self.metric_dropdown.value != "minkowski" else 2
             )
             labels = model.fit_predict(X_scaled)
             
@@ -133,6 +135,7 @@ class DBSCANModel:
             ))
         
         finally:
+            self.parent.enable_model_selection()
             self.train_btn.disabled = False
             self.parent.page.update()
     

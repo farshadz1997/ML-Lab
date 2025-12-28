@@ -197,6 +197,7 @@ class KNNModel:
         """Train KNN model and display evaluation results."""
         try:
             e.control.disabled = True
+            self.parent.disable_model_selection()
             disable_navigation_bar(self.parent.page)
             self.parent.page.update()
             
@@ -213,7 +214,7 @@ class KNNModel:
             if not params_valid:
                 self.parent.page.open(ft.SnackBar(
                     ft.Text("Invalid hyperparameters. Using default values.", font_family="SF regular"),
-                    bgcolor="#FF9800"  # Orange for warning
+                    bgcolor="#FF9800"
                 ))
             
             model = KNeighborsClassifier(
@@ -245,6 +246,7 @@ class KNNModel:
             ))
         
         finally:
+            self.parent.enable_model_selection()
             self.train_btn.disabled = False
             self.parent.page.update()
     
