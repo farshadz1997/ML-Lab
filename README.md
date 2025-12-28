@@ -49,7 +49,7 @@ First, ensure you have [uv](https://github.com/astral-sh/uv) installed.
 ```bash
 # Clone the repository
 git clone https://github.com/farshadz1997/ML-Lab.git
-cd "Machine learning model fit and evaluation"
+cd "ML-Lab"
 
 # Create virtual environment & Install dependencies
 uv sync
@@ -63,7 +63,7 @@ uv run src/main.py
 ```bash
 # Clone the repository
 git clone https://github.com/farshadz1997/ML-Lab.git
-cd "Machine learning model fit and evaluation"
+cd "ML-Lab"
 
 # Create a virtual environment (recommended)
 python -m venv venv
