@@ -11,7 +11,7 @@ from .charts import (
 if TYPE_CHECKING:
     from .layout import AppLayout
 
-VIZ_TYPE = Literal["Histogram", "Box", "Scatter", "Heatmap", "Pie", "Bsar"]
+VIZ_TYPE = Literal["Histogram", "Box", "Scatter", "Heatmap", "Pie", "Bar"]
 
 @dataclass
 class DataVisualization:
