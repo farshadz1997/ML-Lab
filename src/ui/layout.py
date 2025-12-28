@@ -16,7 +16,7 @@ class AppLayout:
     dataset: DataSet | None = None
     
     def __post_init__(self):
-        self.page.title = "Data sceience and ML helper"
+        self.page.title = "ML Lab"
         self.page.fonts = {
             "SF thin": "fonts/SFUIDisplay-Thin.otf",
             "SF regular": "fonts/SF-Pro-Display-Regular.otf",
@@ -29,6 +29,7 @@ class AppLayout:
         self.page.window.min_width = 1000
         self.page.window.width = 1000
         self.page.window.height = 1000
+        self.page.theme_mode = "dark"
         self.home = DatasetExplorer(self, self.page)
         self.data_science = DataVisualization(self, self.page)
         self.model_factory = ModelFactory(self, self.page)

@@ -145,3 +145,32 @@ class DataSet:
         timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         self.df.to_csv(path / f"{self.file_name}-{timestamp}.csv")
         return str(path / f"{self.file_name}-{timestamp}.csv")
+    
+    def update_cell(self, row_index: int, column: str, value: str) -> bool:
+        """Update a single cell value in the dataframe.
+        
+        Args:
+            row_index: Row index to update
+            column: Column name to update
+            value: New value (will be converted to float if possible)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if row_index < 0 or row_index >= len(self.df):
+                return False
+            if column not in self.df.columns:
+                return False
+            
+            # Try to convert to float if possible
+            try:
+                converted_value = float(value)
+            except (ValueError, TypeError):
+                converted_value = value
+            
+            self.df.at[row_index, column] = converted_value
+            return True
+        except Exception as e:
+            print(e)
+            return False

@@ -194,7 +194,65 @@ class DatasetExplorer:
             )
         return cols
 
+    def _open_edit_cell_field(self, control: ft.Control, row_index: int, column: str, current_value: str) -> None:
+        """Open a text field to edit a cell value."""
+        def on_blur_event(e: ft.ControlEvent, previous_text_button: ft.TextButton, previous_value: str, row_idx: int, col: str, datacell: ft.DataCell) -> None:
+            new_value: str | None = e.control.value
+            if new_value is None or new_value.strip() in ("", "nan"):
+                new_value = np.nan
+            else:
+                new_value = new_value.strip()
+            
+            previous_text_button.style = ft.ButtonStyle(
+                color=ft.Colors.RED if pd.isna(new_value) else None,
+                text_style=ft.TextStyle(font_family="SF regular", color=ft.Colors.RED if pd.isna(new_value) else None),
+            )
+            
+            # Update the cell in the dataframe
+            success = self.parent.dataset.update_cell(row_idx, col, new_value)
+            if success:
+                # Update the display
+                try:
+                    converted = float(new_value)
+                    display_val = str(round(converted, 2))
+                except (ValueError, TypeError):
+                    display_val = new_value
+                
+                previous_text_button.text = display_val
+                self.parent.page.open(ft.SnackBar(
+                    ft.Text(f"Cell updated successfully", font_family="SF regular")
+                ))
+            else:
+                self.parent.page.open(ft.SnackBar(
+                    ft.Text(f"Failed to update cell", font_family="SF regular")
+                ))
+            
+            previous_text_button.on_click = lambda e: self._open_edit_cell_field(e.control, row_idx, column, str(new_value))
+            datacell.content = previous_text_button
+            self.page.update()
+        
+        # Replace the text with an editable field
+        data_cell: ft.DataCell = control.parent
+        original_text_button = control
+        
+        edit_field = ft.TextField(
+            value=current_value,
+            width=150,
+            shift_enter=False,
+            multiline=False,
+            autofocus=True,
+            dense=True,
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            on_blur=lambda e: on_blur_event(e, original_text_button, current_value, row_index, column, data_cell),
+            on_submit=lambda e: on_blur_event(e, original_text_button, current_value, row_index, column, data_cell)
+        )
+        
+        data_cell.content = edit_field
+        self.page.update()
+
     def _make_datatable_rows(self, df_slice: pd.DataFrame) -> list[ft.DataRow]:
+
         """Create DataRow list for the provided dataframe slice.
 
         The dataframe slice is expected to have been produced by
@@ -229,17 +287,25 @@ class DatasetExplorer:
             other_cells = []
             for i in range(len(df_slice.columns) - 1):
                 val = row.iloc[i + 1]
+                column_name = df_slice.columns[i + 1]
+                row_index = int(row.iloc[0])
+                
                 display_val = (
                     str(round(val, 2)) if isinstance(val, (int, float)) and not pd.isna(val) else str(val)
                 )
+                
+                # Wrap in a button for editing
+                edit_button = ft.TextButton(
+                    text=display_val,
+                    on_click=lambda e, ri=row_index, cn=column_name, cv=str(val): self._open_edit_cell_field(e.control, ri, cn, cv),
+                    style=ft.ButtonStyle(
+                        color=ft.Colors.RED if pd.isna(val) else None,
+                        text_style=ft.TextStyle(font_family="SF regular", color=ft.Colors.RED if pd.isna(val) else None),
+                    ),
+                )
+                
                 other_cells.append(
-                    ft.DataCell(
-                        content=ft.Text(
-                            value=display_val,
-                            font_family="SF regular",
-                            color=ft.Colors.RED if pd.isna(val) else None
-                        )
-                    )
+                    ft.DataCell(content=edit_button)
                 )
 
             rows.append(ft.DataRow(cells=[first_cell, *other_cells]))
