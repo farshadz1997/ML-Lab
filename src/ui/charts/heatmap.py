@@ -10,13 +10,13 @@ import numpy as np
 from .base import BaseChart
 
 if TYPE_CHECKING:
-    from ..data_science import DataScience
+    from ..data_visualization import DataVisualization
 
 
 @dataclass
 class HeatmapChart(BaseChart):
     df: DataFrame
-    parent: DataScience
+    parent: DataVisualization
     page: ft.Page
     
     def __post_init__(self):

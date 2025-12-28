@@ -105,7 +105,7 @@ class DataSet:
         try:
             if 0 <= row_index < len(self.df):
                 self.df.drop(index=row_index, inplace=True)
-                self.df.reset_index(drop=True, inplace=True)
+                # self.df.reset_index(drop=True, inplace=True)
                 return True
             return False
         except Exception as e:

@@ -1,16 +1,12 @@
 from __future__ import annotations
-import logging
-from pathlib import Path
 import flet as ft
-import pandas as pd
-import numpy as np
 from typing import List, Literal, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 from helpers import resource_path
-from .home import Home
-from .data_science import DataScience
+from .dataset_explorer import DatasetExplorer
+from .data_visualization import DataVisualization
 from .model_factory import ModelFactory
-from utils import DataSet
+from core import DataSet
 
 
 
@@ -33,8 +29,8 @@ class AppLayout:
         self.page.window.min_width = 1000
         self.page.window.width = 1000
         self.page.window.height = 1000
-        self.home = Home(self, self.page)
-        self.data_science = DataScience(self, self.page)
+        self.home = DatasetExplorer(self, self.page)
+        self.data_science = DataVisualization(self, self.page)
         self.model_factory = ModelFactory(self, self.page)
         self.page.navigation_bar = ft.NavigationBar(
             on_change=self.on_navigation_change,

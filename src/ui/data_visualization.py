@@ -1,22 +1,11 @@
 from __future__ import annotations
-import logging
-from pathlib import Path
 import flet as ft
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-import plotly.express as px
-from typing import List, Literal, Any, TYPE_CHECKING, Callable
+from typing import Literal, TYPE_CHECKING, Callable
 from dataclasses import dataclass, field
-from helpers import resource_path
-import tempfile
-import webbrowser
-from .charts.scatter import ScatterChart
-from .charts.histogram import HistogramChart
-from .charts.boxplot import BoxPlotChart
-from .charts.heatmap import HeatmapChart
-from .charts.piechart import PieChart
-from .charts.barchart import BarChart
+from .charts import (
+    ScatterChart, HistogramChart, BoxPlotChart,
+    HeatmapChart, PieChart, BarChart
+)
 
 
 if TYPE_CHECKING:
@@ -25,7 +14,7 @@ if TYPE_CHECKING:
 VIZ_TYPE = Literal["Histogram", "Box", "Scatter", "Heatmap", "Pie", "Bsar"]
 
 @dataclass
-class DataScience:
+class DataVisualization:
     parent: AppLayout
     page: ft.Page
     column: ft.Column | None = field(default=None, init=False)

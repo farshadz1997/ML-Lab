@@ -7,7 +7,7 @@ import numpy as np
 from typing import List, Literal, Any, TYPE_CHECKING, Callable
 from dataclasses import dataclass, field
 from helpers import resource_path
-from utils import DataSet
+from core import DataSet
 
 if TYPE_CHECKING:
     from .layout import AppLayout
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 DISPLAY_MODE = Literal["describe", "custom_describe", "missing_values", "nan_rows", "duplicate_rows", "browse"]
 
 @dataclass
-class Home:
+class DatasetExplorer:
     parent: AppLayout
     page: ft.Page
     column: ft.Column | None = None
@@ -209,7 +209,7 @@ class Home:
                     content=ft.Row(
                         alignment=ft.MainAxisAlignment.SPACE_AROUND,
                         controls=[
-                            ft.Text(str(idx_value), font_family="SF regular"),
+                            ft.Text(str(int(idx_value)), font_family="SF regular"),
                             ft.IconButton(
                                 icon=ft.Icons.DELETE,
                                 tooltip="Delete row",
