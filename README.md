@@ -95,7 +95,7 @@ flet run --web
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.11+
 - See `requirements.txt` for all dependencies
 
 ## Building for Distribution
