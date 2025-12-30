@@ -153,6 +153,215 @@ class DatasetExplorer:
         elif self.current_display_mode == "browse":
             self._create_dataset_browser_table(self.current_display_page)
 
+    def _replace_field_in_column(self, e: ft.ControlEvent, column: str) -> None:
+        def _on_apply() -> None:
+            try:
+                nonlocal old_field, new_field, replace_type, dialog
+                old_value = old_field.value.strip()
+                new_value = new_field.value.strip()
+                if replace_type.value == "str":
+                    success = self.parent.dataset.replace_in_column_str(column, old_value, new_value)
+                else:
+                    # check for nan replacement
+                    old_value = np.nan if old_value.lower() == "nan" else old_value
+                    new_value = np.nan if new_value.lower() == "nan" else new_value
+                    # convert to numeric if possible
+                    if old_field.suffix.text == "Numeric" and self.parent.dataset.is_numeric(old_value):
+                        old_value = pd.to_numeric(old_value)
+                    if new_field.suffix.text == "Numeric" and self.parent.dataset.is_numeric(new_value):
+                        new_value = pd.to_numeric(new_value)
+                    success = self.parent.dataset.replace_in_column(column, old_value, new_value)
+                if success:
+                    self.page.open(ft.SnackBar(ft.Text(f'Replaced "{old_value}" with "{new_value}" in column "{column}"', font_family="SF regular")))
+                self.page.close(dialog)
+                self._refresh_display()
+            except Exception as e:
+                self.page.close(dialog) 
+                self.page.open(ft.SnackBar(ft.Text(e, font_family="SF regular")))
+        
+        def _suffix_button_on_click(e: ft.ControlEvent) -> None:
+            if e.control.text == "String":
+                e.control.text = "Numeric"
+            else:
+                e.control.text = "String"
+            self.page.update()
+        
+        replace_type = ft.Dropdown(
+            value="complete",
+            label="Replace type",
+            expand=True,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            options=[
+                ft.dropdown.Option(key="str", text="In string", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.dropdown.Option(key="complete", text="Complete", text_style=ft.TextStyle(font_family="SF regular")),
+            ],
+        )
+        old_field = ft.TextField(
+            label="Old",
+            expand=2,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
+            multiline=False,
+            shift_enter=False,
+            dense=True,
+            text_align=ft.TextAlign.CENTER,
+            suffix=ft.TextButton(
+                text="String",
+                style=ft.ButtonStyle(text_style=ft.TextStyle(font_family="SF regular")),
+                on_click=_suffix_button_on_click,
+                tooltip="Toggle input type for conversion purposes"
+            )
+        )
+        new_field = ft.TextField(
+            label="New",
+            expand=2,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
+            multiline=False,
+            shift_enter=False,
+            dense=True,
+            text_align=ft.TextAlign.CENTER,
+            suffix=ft.TextButton(
+                text="String",
+                style=ft.ButtonStyle(text_style=ft.TextStyle(font_family="SF regular")),
+                on_click=_suffix_button_on_click,
+                tooltip="Toggle input type for conversion purposes"
+            )
+        )
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Column(
+                controls=[
+                    ft.Row([ft.Text(f'Replace in "{column}"', font_family="SF thin", expand=True, text_align="center")]),
+                    ft.Divider()
+                ]
+            ),
+            content=ft.Container(
+                width=500,
+                expand=True,
+                content=ft.Column(
+                    scroll=ft.ScrollMode.AUTO,
+                    controls=[
+                        ft.Text(
+                            "'In string' replace type: the 'Old' value will be searched within string values of the column and replaced accordingly.",
+                            font_family="SF light",
+                            size=15,
+                            color=ft.Colors.GREY_400
+                        ),
+                        ft.Text(
+                            "'Complete' replace type: the entire cell value must match the 'Old' value to be replaced.",
+                            font_family="SF light",
+                            size=15,
+                            color=ft.Colors.GREY_400
+                        ),
+                        ft.Text(
+                            "To work with NaN values, set 'Replace type' to 'complete' and use 'nan' (without quotes)",
+                            font_family="SF light",
+                            size=15,
+                            color=ft.Colors.GREY_400
+                        ),
+                        ft.Text(
+                            "Toggle the input type (String/Numeric) using the button next to each field for proper conversion.",
+                            font_family="SF light",
+                            size=15,
+                            color=ft.Colors.GREY_400
+                        ),
+                        ft.Row([replace_type]),
+                        ft.Row(
+                            controls=[
+                                ft.Text("Replace", font_family="SF regular", expand=1, text_align=ft.TextAlign.LEFT, size=16),
+                                old_field,
+                                ft.Text("with", font_family="SF regular", expand=1, text_align=ft.TextAlign.CENTER, size=16),
+                                new_field
+                            ]
+                        ),
+                    ],    
+                ),
+            ),
+            actions=[
+                ft.Row(
+                    controls=[
+                        ft.OutlinedButton(
+                            text="Cancel",
+                            style=ft.ButtonStyle(text_style=ft.TextStyle(font_family="SF regular")),
+                            expand=1,
+                            on_click=lambda _: self.page.close(dialog)
+                        ),
+                        ft.FilledButton(
+                            text="Apply",
+                            style=ft.ButtonStyle(text_style=ft.TextStyle(font_family="SF regular")),
+                            expand=1,
+                            on_click=lambda _: _on_apply()
+                        )
+                    ]
+                )
+            ]
+        )
+        self.page.open(dialog)
+    
+    def _change_dtype_of_column(self, e: ft.ControlEvent, column: str) -> None:
+        def _on_apply():
+            nonlocal dtypes_dropdown, dialog
+            try:
+                success = self.parent.dataset.convert_column_dtype(column, dtypes_dropdown.value)
+                self._refresh_display()
+                self.page.close(dialog)
+                if success:
+                    self.page.open(ft.SnackBar(ft.Text(f"Data type of column '{column}' changed to '{dtypes_dropdown.value}'", font_family="SF regular")))
+                else:
+                    self.page.open(ft.SnackBar(ft.Text(f"'{column}' not exists", font_family="SF regular")))
+            except Exception as e:
+                self.page.close(dialog)
+                self.page.open(ft.SnackBar(ft.Text(f"Failed to change data type of column '{column}': {str(e)}", font_family="SF regular")))
+        
+        dtypes_dropdown = ft.Dropdown(
+            label="Dtypes",
+            expand=True,
+            value="string",
+            label_style=ft.TextStyle(font_family="SF regular"),
+            options=[
+                ft.dropdown.Option(key="object", text="Object", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.dropdown.Option(key="string", text="String", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.dropdown.Option(key="Int64", text="Integer", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.dropdown.Option(key="Float64", text="Float", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.dropdown.Option(key="complex128", text="Complex numbers", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.dropdown.Option(key="datetime64[ns]", text="Timestamp", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.dropdown.Option(key="timedelta64[ns]", text="Time difference", text_style=ft.TextStyle(font_family="SF regular")),
+            ]
+        )
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Column(
+                controls=[
+                    ft.Row([ft.Text(f'Convert Dtype of "{column}"', font_family="SF thin", expand=True, text_align="center")]),
+                    ft.Divider()
+                ]
+            ),
+            content=ft.Container(
+                expand=True,
+                content=dtypes_dropdown
+            ),
+            actions=[
+                ft.Row(
+                    controls=[
+                        ft.OutlinedButton(
+                            text="Cancel",
+                            style=ft.ButtonStyle(text_style=ft.TextStyle(font_family="SF regular")),
+                            expand=1,
+                            on_click=lambda _: self.page.close(dialog)
+                        ),
+                        ft.FilledButton(
+                            text="Apply",
+                            style=ft.ButtonStyle(text_style=ft.TextStyle(font_family="SF regular")),
+                            expand=1,
+                            on_click=lambda _:_on_apply()
+                        )
+                    ]
+                )
+            ]
+        )
+        self.page.open(dialog)
+    
     def _make_datatable_columns(self, df: pd.DataFrame) -> list[ft.DataColumn]:
         """Return DataTable column definitions for a given dataframe.
 
@@ -169,21 +378,31 @@ class DatasetExplorer:
                                 content=ft.Text(col, font_family="SF regular"),
                                 controls=[
                                     ft.MenuItemButton(
-                                        content=ft.Text("Remove column"),
+                                        content=ft.Text("Remove column", font_family="SF regular"),
                                         leading=ft.Icon(ft.Icons.DELETE),
                                         style=ft.ButtonStyle(bgcolor={ft.ControlState.HOVERED: ft.Colors.RED}),
                                         on_click=lambda e: self._drop_column(e.control)
                                     ),
                                     ft.MenuItemButton(
-                                        content=ft.Text("Rename column"),
+                                        content=ft.Text("Rename column", font_family="SF regular"),
                                         leading=ft.Icon(ft.Icons.EDIT),
                                         style=ft.ButtonStyle(bgcolor={ft.ControlState.HOVERED: ft.Colors.BLUE}),
                                         on_click=lambda e: self._open_rename_field(e.control)
                                     ),
                                     ft.MenuItemButton(
-                                        content=ft.Text("Unique values"),
+                                        content=ft.Text("Unique values", font_family="SF regular"),
                                         leading=ft.Icon(ft.Icons.DIFFERENCE),
                                         on_click=lambda e, col=col: self._display_unique_values(col)
+                                    ),
+                                    ft.MenuItemButton(
+                                        content=ft.Text("Replace", font_family="SF regular"),
+                                        leading=ft.Icon(ft.Icons.CHANGE_CIRCLE_ROUNDED),
+                                        on_click=lambda e, col=col: self._replace_field_in_column(e, col)
+                                    ),
+                                    ft.MenuItemButton(
+                                        content=ft.Text("Change Dtype", font_family="SF regular"),
+                                        leading=ft.Icon(ft.Icons.TYPE_SPECIMEN),
+                                        on_click=lambda e, col=col: self._change_dtype_of_column(e, col)
                                     ),
                                 ]
                             )
@@ -638,6 +857,7 @@ class DatasetExplorer:
     def _create_describe_datatable(self) -> None:
         df = self.parent.dataset.describe(include="all")
         datatable = ft.DataTable(
+            column_spacing=100,
             columns=[
                 ft.DataColumn(label=ft.Text("")),
                 *[ft.DataColumn(
@@ -647,7 +867,7 @@ class DatasetExplorer:
                                 content=ft.Text(col, font_family="SF regular"),
                                 controls=[
                                     ft.MenuItemButton(
-                                        content=ft.Text("Remove column"),
+                                        content=ft.Text("Remove column", font_family="SF regular"),
                                         leading=ft.Icon(ft.Icons.DELETE),
                                         style=ft.ButtonStyle(
                                             bgcolor={ft.ControlState.HOVERED: ft.Colors.RED}
@@ -655,7 +875,7 @@ class DatasetExplorer:
                                         on_click=lambda e: self._drop_column(e.control)
                                     ),
                                     ft.MenuItemButton(
-                                        content=ft.Text("Rename column"),
+                                        content=ft.Text("Rename column", font_family="SF regular"),
                                         leading=ft.Icon(ft.Icons.EDIT),
                                         style=ft.ButtonStyle(
                                             bgcolor={ft.ControlState.HOVERED: ft.Colors.BLUE}
@@ -663,9 +883,19 @@ class DatasetExplorer:
                                         on_click=lambda e: self._open_rename_field(e.control)
                                     ),
                                     ft.MenuItemButton(
-                                        content=ft.Text("Unique values"),
+                                        content=ft.Text("Unique values", font_family="SF regular"),
                                         leading=ft.Icon(ft.Icons.DIFFERENCE),
                                         on_click=lambda e, col=col: self._display_unique_values(col)
+                                    ),
+                                    ft.MenuItemButton(
+                                        content=ft.Text("Replace", font_family="SF regular"),
+                                        leading=ft.Icon(ft.Icons.CHANGE_CIRCLE_ROUNDED),
+                                        on_click=lambda e, col=col: self._replace_field_in_column(e, col)
+                                    ),
+                                    ft.MenuItemButton(
+                                        content=ft.Text("Change Dtype", font_family="SF regular"),
+                                        leading=ft.Icon(ft.Icons.TYPE_SPECIMEN),
+                                        on_click=lambda e, col=col: self._change_dtype_of_column(e, col)
                                     ),
                                 ]
                             )
@@ -1023,7 +1253,7 @@ class DatasetExplorer:
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             alignment=ft.MainAxisAlignment.CENTER,
             controls=[
-                ft.Text("Dataset Overview", font_family="SF thin", size=30, expand=True, text_align="center"),
+                ft.Text("Dataset explorer", font_family="SF thin", size=30, expand=True, text_align="center"),
                 ft.Divider(),
                 ft.Card(
                     content=ft.Container(

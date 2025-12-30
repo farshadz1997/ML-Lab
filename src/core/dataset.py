@@ -130,6 +130,27 @@ class DataSet:
         except Exception as e:
             print(e)
             return False
+    
+    def is_numeric(self, x: Any) -> bool:
+        return pd.to_numeric(x, errors="coerce") is not None and not pd.isna(pd.to_numeric(x, errors="coerce"))
+    
+    def replace_in_column(self, column: str, to_replace: Any, value: Any) -> bool:
+        if column in self.df.columns:
+            self.df[column] = self.df[column].replace({to_replace: value})
+            return True
+        return False
+    
+    def replace_in_column_str(self, column: str, to_replace: str, value: str) -> bool:
+        if column in self.df.columns:
+            self.df[column] = self.df[column].astype(str).str.replace(to_replace, value, regex=True)
+            return True
+        return False
+    
+    def convert_column_dtype(self, column: str, dtype: Dtype) -> bool:
+        if column in self.df.columns:
+            self.df[column] = self.df[column].astype(dtype)
+            return True
+        return False
         
     def reset_index(self) -> None:
         self.df.reset_index(drop=True, inplace=True)
