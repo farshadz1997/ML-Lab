@@ -813,7 +813,7 @@ class DatasetExplorer:
             rows=[
                 ft.DataRow(
                     cells=[
-                        ft.DataCell(content=ft.Text(stat_name)),
+                        ft.DataCell(content=ft.Text(stat_name, font_family="SF regular")),
                         *[
                             ft.DataCell(
                                 content=ft.Text(
@@ -859,56 +859,11 @@ class DatasetExplorer:
         df = self.parent.dataset.describe(include="all")
         datatable = ft.DataTable(
             column_spacing=100,
-            columns=[
-                ft.DataColumn(label=ft.Text("")),
-                *[ft.DataColumn(
-                    label=ft.MenuBar(
-                        controls=[
-                            ft.SubmenuButton(
-                                content=ft.Text(col, font_family="SF regular"),
-                                controls=[
-                                    ft.MenuItemButton(
-                                        content=ft.Text("Remove column", font_family="SF regular"),
-                                        leading=ft.Icon(ft.Icons.DELETE),
-                                        style=ft.ButtonStyle(
-                                            bgcolor={ft.ControlState.HOVERED: ft.Colors.RED}
-                                        ),
-                                        on_click=lambda e: self._drop_column(e.control)
-                                    ),
-                                    ft.MenuItemButton(
-                                        content=ft.Text("Rename column", font_family="SF regular"),
-                                        leading=ft.Icon(ft.Icons.EDIT),
-                                        style=ft.ButtonStyle(
-                                            bgcolor={ft.ControlState.HOVERED: ft.Colors.BLUE}
-                                        ),
-                                        on_click=lambda e: self._open_rename_field(e.control)
-                                    ),
-                                    ft.MenuItemButton(
-                                        content=ft.Text("Unique values", font_family="SF regular"),
-                                        leading=ft.Icon(ft.Icons.DIFFERENCE),
-                                        on_click=lambda e, col=col: self._display_unique_values(col)
-                                    ),
-                                    ft.MenuItemButton(
-                                        content=ft.Text("Replace", font_family="SF regular"),
-                                        leading=ft.Icon(ft.Icons.CHANGE_CIRCLE_ROUNDED),
-                                        on_click=lambda e, col=col: self._replace_field_in_column(e, col)
-                                    ),
-                                    ft.MenuItemButton(
-                                        content=ft.Text("Change Dtype", font_family="SF regular"),
-                                        leading=ft.Icon(ft.Icons.TYPE_SPECIMEN),
-                                        on_click=lambda e, col=col: self._change_dtype_of_column(e, col)
-                                    ),
-                                ]
-                            )
-                        ]
-                    ),
-                    numeric=pd.api.types.is_numeric_dtype(df[col])
-                ) for col in df.columns]
-            ],
+            columns=self._make_datatable_columns(self.parent.dataset.df),
             rows=[
                 ft.DataRow(
                     cells=[
-                        ft.DataCell(content=ft.Text(stat_name)),
+                        ft.DataCell(content=ft.Text(stat_name, font_family="SF regular")),
                         *[
                             ft.DataCell(
                                 content=ft.Text(
