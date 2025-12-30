@@ -325,6 +325,7 @@ class DatasetExplorer:
                 ft.dropdown.Option(key="Int64", text="Integer", text_style=ft.TextStyle(font_family="SF regular")),
                 ft.dropdown.Option(key="Float64", text="Float", text_style=ft.TextStyle(font_family="SF regular")),
                 ft.dropdown.Option(key="complex128", text="Complex numbers", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.dropdown.Option(key="category", text="Category", text_style=ft.TextStyle(font_family="SF regular")),
                 ft.dropdown.Option(key="datetime64[ns]", text="Timestamp", text_style=ft.TextStyle(font_family="SF regular")),
                 ft.dropdown.Option(key="timedelta64[ns]", text="Time difference", text_style=ft.TextStyle(font_family="SF regular")),
             ]
