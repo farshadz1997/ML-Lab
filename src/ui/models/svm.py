@@ -30,6 +30,7 @@ from utils.model_utils import (
     disable_navigation_bar,
     enable_navigation_bar
 )
+from core.data_preparation import prepare_data_for_training
 
 if TYPE_CHECKING:
     from ..model_factory import ModelFactory
@@ -53,46 +54,62 @@ class SVMModel:
     
     def _prepare_data(self) -> Optional[Tuple]:
         """
-        Preprocess, encode, scale (on full X), and split data.
+        Prepare data for training using spec-compliant categorical encoding.
         
-        Important: Scaling is applied to FULL dataset BEFORE train_test_split
-        to avoid data leakage while preserving statistical properties.
+        Uses prepare_data_for_training() which:
+        - Performs train-test split BEFORE encoding (prevents data leakage)
+        - Fits encoders ONLY on training data
+        - Applies encoders to test data
+        - Returns encoding metadata and cardinality warnings
         
         Returns:
-            Tuple[X_train, X_test, y_train, y_test, feature_cols] or None if error
+            Tuple of (X_train, X_test, y_train, y_test, categorical_cols, numeric_cols,
+                      encoders, warnings) or None if error
         """
         try:
-            df = self.df.copy()
             target_name = self.parent.target_column_dropdown.value
-            
-            feature_cols = [col for col in df.columns if col != target_name]
-            X = df[feature_cols].copy()
-            y = df[target_name].copy()
-            
-            categorical_cols = X.select_dtypes(include=['object']).columns.tolist()
-            numeric_cols = X.select_dtypes(include=['number']).columns.tolist()
-            
-            self.label_encoders = {}
-            task_type = self._get_task_type()
-            
-            if task_type == "Classification" and y.dtype == 'object':
-                le = LabelEncoder()
-                y = le.fit_transform(y.astype(str))
-                self.label_encoders['target'] = le
-            else:
-                y = y.values
-            
-            # Create and fit preprocessor on FULL data (before train_test_split)
-            self.preprocessor = self._build_preprocessor(categorical_cols, numeric_cols)
-            X_processed = self.preprocessor.fit_transform(X)
-            
-            # NOW split the scaled data
             test_size = self._validate_test_size()
-            X_train, X_test, y_train, y_test = train_test_split(
-                X_processed, y, test_size=test_size, random_state=42
+            
+            # Call spec-compliant data preparation
+            (
+                X_train,
+                X_test,
+                y_train,
+                y_test,
+                categorical_cols,
+                numeric_cols,
+                encoders,
+                cardinality_warnings,
+            ) = prepare_data_for_training(
+                self.df.copy(),
+                target_col=target_name,
+                test_size=test_size,
+                random_state=42,
+                raise_on_unseen=True,
             )
             
-            return X_train, X_test, y_train, y_test, feature_cols
+            # Store encoding metadata for later use
+            self.categorical_cols = categorical_cols
+            self.numeric_cols = numeric_cols
+            self.encoders = encoders
+            self.cardinality_warnings = cardinality_warnings
+            
+            # Warn user about high-cardinality columns if any
+            if cardinality_warnings:
+                warning_msgs = [
+                    f"{col}: {w.message}"
+                    for col, w in cardinality_warnings.items()
+                ]
+                self.parent.page.open(ft.SnackBar(
+                    ft.Text(
+                        "Cardinality warnings: " + "; ".join(warning_msgs),
+                        font_family="SF regular",
+                        color=ft.Colors.ORANGE
+                    )
+                ))
+            
+            # Return tuple for backward compatibility with train method
+            return X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols)
         
         except Exception as e:
             self.parent.page.open(ft.SnackBar(
@@ -217,7 +234,7 @@ class SVMModel:
                 enable_navigation_bar(self.parent.page)
                 return
             
-            X_train, X_test, y_train, y_test, feature_cols = data
+            X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
             
             # Validate hyperparameters
             hyperparams, params_valid = self._validate_hyperparameters()

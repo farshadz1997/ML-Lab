@@ -8,10 +8,12 @@ authors = [
     { name = "Farshad Zargari", email = "farshadzargary1997@gmail.com" }
 ]
 dependencies = [
+  "category-encoders>=2.6.4",
   "flet[all]==0.28.3",
   "kneed>=0.8.5",
   "matplotlib>=3.9.4",
   "pandas>=2.3.3",
+  "pytest>=8.4.2",
   "scikit-learn>=1.6.1",
   "seaborn>=0.13.2",
   "setuptools>=80.9.0",
