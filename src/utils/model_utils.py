@@ -11,7 +11,8 @@ This module provides centralized functions for:
 Purpose: Eliminate duplication across model implementations (DRY principle, AR-008)
 """
 
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
+from dataclasses import dataclass, asdict
 import numpy as np
 import pandas as pd
 from sklearn.metrics import (
@@ -26,6 +27,9 @@ from sklearn.metrics import (
     silhouette_score,
     calinski_harabasz_score,
 )
+from sklearn.preprocessing import LabelEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 import flet as ft
 
 
@@ -713,3 +717,476 @@ def create_results_dialog(
     return dialog
 
 
+# ==================== CATEGORICAL ENCODING UTILITIES (Phase 1) ====================
+
+
+class EncodingError(Exception):
+    """
+    Exception raised when categorical encoding fails.
+    
+    Attributes:
+        message: Error message describing the issue
+        column: Column name where encoding failed (optional)
+        unseen_values: List of unseen categorical values (optional)
+        original_classes: Expected class values (optional)
+    """
+    
+    def __init__(
+        self,
+        message: str,
+        column: Optional[str] = None,
+        unseen_values: Optional[List[Any]] = None,
+        original_classes: Optional[List[Any]] = None,
+    ):
+        self.message = message
+        self.column = column
+        self.unseen_values = unseen_values
+        self.original_classes = original_classes
+        super().__init__(self._format_message())
+    
+    def _format_message(self) -> str:
+        """Format a user-friendly error message."""
+        if self.column and self.unseen_values:
+            unseen_str = ", ".join(str(v) for v in self.unseen_values[:5])
+            if len(self.unseen_values) > 5:
+                unseen_str += f", ... and {len(self.unseen_values) - 5} more"
+            
+            expected_str = ", ".join(str(v) for v in self.original_classes[:10]) if self.original_classes else "unknown"
+            
+            return (
+                f"Encoding Error in column '{self.column}':\n"
+                f"  Found unseen values: {unseen_str}\n"
+                f"  Expected values: {expected_str}\n"
+                f"  Action: Review your data for unexpected values.\n"
+                f"  Details: {self.message}"
+            )
+        return self.message
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize error to dictionary for logging."""
+        return {
+            "error_type": self.__class__.__name__,
+            "message": self.message,
+            "column": self.column,
+            "unseen_values": self.unseen_values,
+            "original_classes": self.original_classes,
+        }
+
+
+@dataclass
+class CardinalityWarning:
+    """
+    Warning for high-cardinality categorical columns.
+    
+    Attributes:
+        column: Column name
+        cardinality: Number of unique values
+        threshold: Cardinality threshold
+        severity: "warning" or "error"
+        message: User-friendly message
+    """
+    column: str
+    cardinality: int
+    threshold: int = 1000
+    severity: str = "warning"
+    message: Optional[str] = None
+    
+    def __post_init__(self):
+        """Generate message if not provided."""
+        if not self.message:
+            if self.cardinality > self.threshold:
+                self.message = (
+                    f"Column '{self.column}' has {self.cardinality} unique values "
+                    f"(exceeds threshold {self.threshold}). "
+                    f"Consider reviewing this column."
+                )
+            else:
+                self.message = (
+                    f"Column '{self.column}' has {self.cardinality} unique values."
+                )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize warning to dictionary."""
+        return asdict(self)
+
+
+@dataclass
+class CategoricalEncodingInfo:
+    """
+    Metadata for a categorical column's encoding.
+    
+    Attributes:
+        column_name: Name of the column
+        cardinality: Number of unique values
+        original_classes: List of original class values
+        mapping: Dict mapping original value -> encoded integer
+        cardinality_warning: Whether column exceeds cardinality threshold
+    """
+    column_name: str
+    cardinality: int
+    original_classes: List[Any]
+    mapping: Dict[Any, int]
+    cardinality_warning: bool = False
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize encoding info to dictionary."""
+        return {
+            "column_name": self.column_name,
+            "cardinality": self.cardinality,
+            "original_classes": [str(v) for v in self.original_classes],
+            "mapping": {str(k): int(v) for k, v in self.mapping.items()},
+            "cardinality_warning": self.cardinality_warning,
+        }
+
+
+def detect_categorical_columns(df: pd.DataFrame) -> List[str]:
+    """
+    Detect all categorical (object dtype) columns in a DataFrame.
+    
+    Args:
+        df: Input DataFrame
+        
+    Returns:
+        Sorted list of column names with object dtype
+        
+    Examples:
+        >>> df = pd.DataFrame({"name": ["Alice", "Bob"], "age": [25, 30]})
+        >>> detect_categorical_columns(df)
+        ['name']
+    """
+    if df.empty:
+        return []
+    
+    cat_cols = df.select_dtypes(include=['object']).columns.tolist()
+    return sorted(cat_cols)
+
+
+def validate_cardinality(
+    df: pd.DataFrame,
+    columns: List[str],
+    threshold: int = 1000,
+) -> Dict[str, CardinalityWarning]:
+    """
+    Validate cardinality (unique value count) for categorical columns.
+    
+    Args:
+        df: Input DataFrame
+        columns: List of column names to validate
+        threshold: Cardinality threshold (default: 1000)
+        
+    Returns:
+        Dictionary mapping column_name -> CardinalityWarning for columns exceeding threshold
+        
+    Examples:
+        >>> df = pd.DataFrame({"color": ["red", "blue"] * 1000})
+        >>> warnings = validate_cardinality(df, ["color"], threshold=1000)
+        >>> len(warnings)
+        0
+    """
+    warnings = {}
+    
+    for col in columns:
+        if col not in df.columns:
+            continue
+        
+        unique_count = df[col].nunique()
+        
+        if unique_count > threshold:
+            warnings[col] = CardinalityWarning(
+                column=col,
+                cardinality=unique_count,
+                threshold=threshold,
+                severity="warning",
+            )
+    
+    return warnings
+
+
+def create_categorical_encoders(
+    X_train: pd.DataFrame,
+    categorical_cols: List[str],
+) -> Dict[str, LabelEncoder]:
+    """
+    Create and fit LabelEncoders for categorical columns.
+    
+    **CRITICAL**: Encoders are fitted ONLY on training data to prevent data leakage.
+    
+    Args:
+        X_train: Training feature DataFrame
+        categorical_cols: List of categorical column names
+        
+    Returns:
+        Dictionary mapping column_name -> fitted LabelEncoder
+        
+    Raises:
+        EncodingError: If categorical column not found in X_train
+        
+    Examples:
+        >>> df = pd.DataFrame({"color": ["red", "blue", "red"]})
+        >>> encoders = create_categorical_encoders(df, ["color"])
+        >>> encoders["color"].transform(["red", "blue"])
+        array([1, 0], dtype=int64)
+    """
+    encoders = {}
+    
+    for col in categorical_cols:
+        if col not in X_train.columns:
+            raise EncodingError(
+                message=f"Column '{col}' not found in training data",
+                column=col,
+            )
+        
+        encoder = LabelEncoder()
+        encoder.fit(X_train[col].astype(str))  # Convert to string to handle mixed types
+        encoders[col] = encoder
+    
+    return encoders
+
+
+def apply_encoders(
+    encoders: Dict[str, LabelEncoder],
+    X: pd.DataFrame,
+    raise_on_unknown: bool = True,
+) -> pd.DataFrame:
+    """
+    Apply fitted encoders to a DataFrame.
+    
+    Args:
+        encoders: Dictionary of fitted LabelEncoders (from create_categorical_encoders)
+        X: DataFrame to encode (can be training or test data)
+        raise_on_unknown: If True, raise error on unseen categories; if False, log warning
+        
+    Returns:
+        Copy of X with categorical columns encoded as integers
+        
+    Raises:
+        EncodingError: If raise_on_unknown=True and unseen categories found
+        
+    Examples:
+        >>> df_train = pd.DataFrame({"color": ["red", "blue"]})
+        >>> df_test = pd.DataFrame({"color": ["red", "blue"]})
+        >>> encoders = create_categorical_encoders(df_train, ["color"])
+        >>> encoded = apply_encoders(encoders, df_test)
+        >>> encoded["color"].tolist()
+        [1, 0]
+    """
+    X_copy = X.copy()
+    
+    for col, encoder in encoders.items():
+        if col not in X_copy.columns:
+            continue
+        
+        # Convert to string for consistent comparison
+        X_values_str = X_copy[col].astype(str)
+        encoder_classes_str = set(encoder.classes_)
+        
+        # Detect unseen values
+        unseen = set(X_values_str.unique()) - encoder_classes_str
+        
+        if unseen:
+            unseen_list = sorted(list(unseen))
+            
+            if raise_on_unknown:
+                raise EncodingError(
+                    message=f"Column '{col}' contains {len(unseen)} unseen categorical value(s)",
+                    column=col,
+                    unseen_values=unseen_list,
+                    original_classes=list(encoder.classes_),
+                )
+            else:
+                # Log warning (skip for MVP)
+                pass
+        
+        # Apply encoder
+        X_copy[col] = encoder.transform(X_values_str)
+    
+    return X_copy
+
+
+def get_encoding_mappings(
+    encoders: Dict[str, LabelEncoder],
+) -> Dict[str, Dict[Any, int]]:
+    """
+    Extract original → encoded value mappings from fitted encoders.
+    
+    Args:
+        encoders: Dictionary of fitted LabelEncoders
+        
+    Returns:
+        Nested dict: column_name → {original_value: encoded_int}
+        
+    Examples:
+        >>> df = pd.DataFrame({"color": ["red", "blue", "red"]})
+        >>> encoders = create_categorical_encoders(df, ["color"])
+        >>> mappings = get_encoding_mappings(encoders)
+        >>> mappings["color"]["red"]
+        1
+    """
+    mappings = {}
+    
+    for col, encoder in encoders.items():
+        col_mapping = {}
+        for i, class_label in enumerate(encoder.classes_):
+            col_mapping[class_label] = i
+        mappings[col] = col_mapping
+    
+    return mappings
+
+
+def get_categorical_encoding_info(
+    encoders: Dict[str, LabelEncoder],
+    cardinality_warnings: Optional[Dict[str, CardinalityWarning]] = None,
+) -> Dict[str, CategoricalEncodingInfo]:
+    """
+    Create CategoricalEncodingInfo objects for each encoded column.
+    
+    Args:
+        encoders: Dictionary of fitted LabelEncoders
+        cardinality_warnings: Optional dict of CardinalityWarnings
+        
+    Returns:
+        Dictionary mapping column_name -> CategoricalEncodingInfo
+        
+    Examples:
+        >>> df = pd.DataFrame({"color": ["red", "blue", "red"]})
+        >>> encoders = create_categorical_encoders(df, ["color"])
+        >>> info = get_categorical_encoding_info(encoders)
+        >>> info["color"].cardinality
+        2
+    """
+    cardinality_warnings = cardinality_warnings or {}
+    info = {}
+    
+    for col, encoder in encoders.items():
+        original_classes = list(encoder.classes_)
+        mapping = {original_classes[i]: i for i in range(len(original_classes))}
+        
+        info[col] = CategoricalEncodingInfo(
+            column_name=col,
+            cardinality=len(original_classes),
+            original_classes=original_classes,
+            mapping=mapping,
+            cardinality_warning=col in cardinality_warnings,
+        )
+    
+    return info
+
+
+def build_preprocessing_pipeline(
+    categorical_cols: List[str],
+    numeric_cols: List[str],
+    categorical_encoders: Dict[str, LabelEncoder],
+    numeric_scaler: str = "standard",
+) -> ColumnTransformer:
+    """
+    Build a ColumnTransformer for preprocessing mixed categorical/numeric data.
+    
+    **Order**: Categorical transformations followed by numeric transformations,
+    maintaining consistent column order for reproducibility.
+    
+    Args:
+        categorical_cols: List of categorical column names
+        numeric_cols: List of numeric column names
+        categorical_encoders: Pre-fitted LabelEncoders for categorical columns
+        numeric_scaler: Type of numeric scaling ("standard", "minmax", or "none")
+        
+    Returns:
+        Configured ColumnTransformer ready for fit/transform
+        
+    Raises:
+        ValueError: If no columns provided
+        
+    Examples:
+        >>> df_train = pd.DataFrame({
+        ...     "color": ["red", "blue"],
+        ...     "age": [25, 30]
+        ... })
+        >>> encoders = create_categorical_encoders(df_train, ["color"])
+        >>> transformer = build_preprocessing_pipeline(
+        ...     ["color"], ["age"], encoders, "standard"
+        ... )
+        >>> X_transformed = transformer.fit_transform(df_train)
+    """
+    from sklearn.preprocessing import StandardScaler, MinMaxScaler
+    
+    transformers = []
+    
+    # Categorical transformer: Use pre-fitted LabelEncoders
+    if categorical_cols:
+        # Create a custom transformer that applies pre-fitted encoders
+        class FittedEncoderTransformer:
+            """Applies pre-fitted encoders to categorical columns."""
+            def __init__(self, encoders: Dict[str, LabelEncoder]):
+                self.encoders = encoders
+            
+            def fit(self, X, y=None):
+                return self
+            
+            def transform(self, X):
+                X_copy = X.copy()
+                for col in categorical_cols:
+                    if col in X_copy.columns and col in self.encoders:
+                        X_copy[col] = self.encoders[col].transform(X_copy[col].astype(str))
+                return X_copy[categorical_cols]
+        
+        transformers.append(
+            ("categorical", FittedEncoderTransformer(categorical_encoders), categorical_cols)
+        )
+    
+    # Numeric transformer: Scale numeric columns
+    if numeric_cols:
+        if numeric_scaler.lower() == "standard":
+            scaler = StandardScaler()
+        elif numeric_scaler.lower() == "minmax":
+            scaler = MinMaxScaler()
+        else:
+            scaler = None  # Passthrough
+        
+        if scaler:
+            transformers.append(("numeric", scaler, numeric_cols))
+        else:
+            transformers.append(("numeric", "passthrough", numeric_cols))
+    
+    if not transformers:
+        raise ValueError("Must provide at least one column (categorical or numeric)")
+    
+    return ColumnTransformer(
+        transformers=transformers,
+        remainder="drop",  # Drop any remaining columns
+        sparse_threshold=0,  # Keep as DataFrame
+    )
+
+
+def compose_full_model_pipeline(
+    preprocessor: ColumnTransformer,
+    model_estimator,
+) -> Pipeline:
+    """
+    Compose a full sklearn Pipeline combining preprocessing and model estimator.
+    
+    Args:
+        preprocessor: ColumnTransformer with preprocessing steps
+        model_estimator: sklearn estimator (model) to add after preprocessing
+        
+    Returns:
+        Configured Pipeline ready for fit/predict
+        
+    Examples:
+        >>> from sklearn.linear_model import LogisticRegression
+        >>> df_train = pd.DataFrame({
+        ...     "color": ["red", "blue"],
+        ...     "age": [25, 30]
+        ... })
+        >>> y_train = [0, 1]
+        >>> encoders = create_categorical_encoders(df_train, ["color"])
+        >>> transformer = build_preprocessing_pipeline(
+        ...     ["color"], ["age"], encoders
+        ... )
+        >>> model = LogisticRegression()
+        >>> pipeline = compose_full_model_pipeline(transformer, model)
+        >>> pipeline.fit(df_train, y_train)
+    """
+    return Pipeline([
+        ("preprocessor", preprocessor),
+        ("model", model_estimator),
+    ])
