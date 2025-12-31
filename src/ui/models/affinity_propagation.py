@@ -28,6 +28,7 @@ from utils.model_utils import (
     disable_navigation_bar,
     enable_navigation_bar,
 )
+from core.data_preparation import prepare_data_for_training_no_split
 
 if TYPE_CHECKING:
     from ..model_factory import ModelFactory
@@ -44,29 +45,66 @@ class AffinityPropagationModel:
         """Ensure dataset is copied to avoid mutations."""
         self.df = self.df.copy()
     
+    
     def _prepare_data(self) -> Optional[Tuple]:
         """
-        Prepare data for clustering (no train/test split, use full dataset).
+        Prepare data for clustering with categorical encoding support (no train-test split).
+        
+        Uses prepare_data_for_training_no_split() which:
+        - Detects and encodes categorical columns
+        - Validates cardinality
+        - Fits encoders on full dataset (clustering is unsupervised)
+        - Returns encoded features and metadata
         
         Returns:
-            Tuple[X_scaled, feature_cols] or None if error
+            Tuple of (X_scaled, feature_cols) or None if error
         """
         try:
-            df = self.df.copy()
-            X = df.copy()
+            # Call spec-compliant data preparation for clustering (no split)
+            (
+                X_encoded,
+                _,  # y is None for clustering
+                categorical_cols,
+                numeric_cols,
+                encoders,
+                cardinality_warnings,
+            ) = prepare_data_for_training_no_split(
+                self.df.copy(),
+                target_col=None,  # No target for clustering
+                raise_on_unseen=True,
+            )
             
-            # Apply scaling to full dataset
+            # Store encoding metadata
+            self.categorical_cols = categorical_cols
+            self.numeric_cols = numeric_cols
+            self.encoders = encoders
+            self.cardinality_warnings = cardinality_warnings
+            
+            # Warn about high-cardinality columns
+            if cardinality_warnings:
+                warning_msgs = [
+                    f"{col}: {w.message}"
+                    for col, w in cardinality_warnings.items()
+                ]
+                self.parent.page.open(ft.SnackBar(
+                    ft.Text(
+                        "Cardinality warnings: " + "; ".join(warning_msgs),
+                        font_family="SF regular",
+                        color=ft.Colors.ORANGE
+                    )
+                ))
+            
+            # Apply scaling if requested
             if self.parent.scaler_dropdown.value == "standard_scaler":
                 scaler = StandardScaler()
-                X_scaled = scaler.fit_transform(X)
+                X_scaled = scaler.fit_transform(X_encoded)
             elif self.parent.scaler_dropdown.value == "minmax_scaler":
                 scaler = MinMaxScaler(feature_range=(0, 1))
-                X_scaled = scaler.fit_transform(X)
+                X_scaled = scaler.fit_transform(X_encoded)
             else:
-                X_scaled = X.values
+                X_scaled = X_encoded.values
             
-            feature_cols = X.columns.tolist()
-            return X_scaled, feature_cols
+            return X_scaled, X_encoded.columns.tolist()
         
         except Exception as e:
             self.parent.page.open(ft.SnackBar(
