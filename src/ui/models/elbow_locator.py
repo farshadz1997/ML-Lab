@@ -19,12 +19,12 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import numpy as np
 from kneed import KneeLocator
-
+from core.data_preparation import prepare_data_for_training_no_split
 from utils.model_utils import (
     format_results_markdown,
     create_results_dialog,
     disable_navigation_bar,
-    enable_navigation_bar
+    enable_navigation_bar,
 )
 
 if TYPE_CHECKING:
@@ -56,11 +56,45 @@ class ElbowLocatorModel:
             # Handle missing values
             X = X.fillna(X.mean(numeric_only=True))
             
-            # Scale data
-            scaler = StandardScaler() if self.parent.scaler_dropdown.value == "standard_scaler" else MinMaxScaler()
-            X_scaled = scaler.fit_transform(X)
+            # Call spec-compliant data preparation for clustering (no split)
+            (
+                X_encoded,
+                _,  # y is None for clustering
+                categorical_cols,
+                numeric_cols,
+                encoders,
+                cardinality_warnings,
+            ) = prepare_data_for_training_no_split(
+                X,
+                target_col=None,  # No target for clustering
+                raise_on_unseen=True,
+            )
             
-            return X_scaled, X
+            # Store encoding metadata
+            self.categorical_cols = categorical_cols
+            self.numeric_cols = numeric_cols
+            self.encoders = encoders
+            self.cardinality_warnings = cardinality_warnings
+            
+            # Warn about high-cardinality columns
+            if cardinality_warnings:
+                warning_msgs = [
+                    f"{col}: {w.message}"
+                    for col, w in cardinality_warnings.items()
+                ]
+                self.parent.page.open(ft.SnackBar(
+                    ft.Text(
+                        "Cardinality warnings: " + "; ".join(warning_msgs),
+                        font_family="SF regular",
+                    ),
+                    bgcolor="#FF9800"
+                ))
+            
+            # Scale data
+            scaler = StandardScaler() if self.parent.scaler_dropdown.value == "standard_scaler" else MinMaxScaler(feature_range=(0, 1))
+            X_scaled = scaler.fit_transform(X_encoded)
+            
+            return X_scaled, X_encoded.columns.tolist()
         
         except Exception as e:
             self.parent.page.open(ft.SnackBar(
