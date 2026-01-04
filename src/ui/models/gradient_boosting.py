@@ -106,8 +106,8 @@ class GradientBoostingModel:
                     ft.Text(
                         "Cardinality warnings: " + "; ".join(warning_msgs),
                         font_family="SF regular",
-                        color=ft.Colors.ORANGE
-                    )
+                    ),
+                    bgcolor="#FF9800"
                 ))
             
             # Return tuple for backward compatibility with train method
@@ -290,7 +290,7 @@ class GradientBoostingModel:
                 result_text = format_results_markdown(metrics_dict, task_type="regression")
             
             # Add feature importance
-            importance = get_feature_importance(model, feature_cols)
+            importance = get_feature_importance(model, self.df.columns.tolist())
             if importance:
                 result_text += "\n\n**Feature Importance:**\n\n"
                 sorted_importance = sorted(importance.items(), key=lambda x: x[1], reverse=True)

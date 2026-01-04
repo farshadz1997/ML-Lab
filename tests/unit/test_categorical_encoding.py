@@ -98,10 +98,11 @@ class TestValidateCardinality:
     
     def test_validate_cardinality_multiple_columns(self):
         """Test multiple columns with mixed cardinalities."""
+        # Create columns with same length (1100 rows)
         df = pd.DataFrame({
-            "color": ["red", "blue"] * 500,
-            "id": range(1100),
-            "category": ["A", "B", "C"] * 300,
+            "color": ["red", "blue"] * 550,  # 1100 items
+            "id": list(range(1100)),  # 1100 unique values (>1000 threshold)
+            "category": ["A", "B", "C"] * 366 + ["A", "B"],  # 1100 items, only 3 unique
         })
         warnings = validate_cardinality(
             df,

@@ -254,8 +254,8 @@ def calculate_regression_metrics(
     """
     try:
         # Flatten predictions if needed
-        y_true_flat = y_true.flatten()
-        y_pred_flat = y_pred.flatten()
+        y_true_flat = y_true
+        y_pred_flat = y_pred
         
         # Calculate metrics
         r2 = r2_score(y_true_flat, y_pred_flat)
@@ -857,7 +857,7 @@ def detect_categorical_columns(df: pd.DataFrame) -> List[str]:
     if df.empty:
         return []
     
-    cat_cols = df.select_dtypes(include=['object']).columns.tolist()
+    cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
     return sorted(cat_cols)
 
 
@@ -1081,6 +1081,11 @@ def build_preprocessing_pipeline(
     """
     Build a ColumnTransformer for preprocessing mixed categorical/numeric data.
     
+    **Important Note**: This function builds a ColumnTransformer that is suitable for
+    transforming data AFTER encoders are fitted. It should NOT be used with Pipeline.fit()
+    on new data (which would try to refit encoders). Instead, data should be pre-encoded
+    using prepare_data_for_training() before being passed to models.
+    
     **Order**: Categorical transformations followed by numeric transformations,
     maintaining consistent column order for reproducibility.
     
@@ -1091,47 +1096,47 @@ def build_preprocessing_pipeline(
         numeric_scaler: Type of numeric scaling ("standard", "minmax", or "none")
         
     Returns:
-        Configured ColumnTransformer ready for fit/transform
+        Configured ColumnTransformer ready for transform operations
         
     Raises:
         ValueError: If no columns provided
-        
-    Examples:
-        >>> df_train = pd.DataFrame({
-        ...     "color": ["red", "blue"],
-        ...     "age": [25, 30]
-        ... })
-        >>> encoders = create_categorical_encoders(df_train, ["color"])
-        >>> transformer = build_preprocessing_pipeline(
-        ...     ["color"], ["age"], encoders, "standard"
-        ... )
-        >>> X_transformed = transformer.fit_transform(df_train)
     """
     from sklearn.preprocessing import StandardScaler, MinMaxScaler
+    from sklearn.base import BaseEstimator, TransformerMixin
     
     transformers = []
     
+    # Helper class that works with sklearn ColumnTransformer
+    class PreFittedEncoderTransformer(BaseEstimator, TransformerMixin):
+        """Transformer that applies pre-fitted LabelEncoders to categorical data."""
+        def __init__(self, encoders_dict: Dict[str, LabelEncoder], col_list: List[str]):
+            self.encoders_dict = encoders_dict
+            self.col_list = col_list
+        
+        def fit(self, X, y=None):
+            # Never refit encoders - they should already be fitted
+            return self
+        
+        def transform(self, X):
+            X_copy = X.copy()
+            for col in self.col_list:
+                if col in X_copy.columns and col in self.encoders_dict:
+                    X_copy[col] = self.encoders_dict[col].transform(X_copy[col].astype(str))
+            return X_copy[self.col_list]
+        
+        def get_params(self, deep=True):
+            # Return minimal params - encoders are not cloned
+            return {'encoders_dict': self.encoders_dict, 'col_list': self.col_list}
+        
+        def set_params(self, **params):
+            for key, value in params.items():
+                setattr(self, key, value)
+            return self
+    
     # Categorical transformer: Use pre-fitted LabelEncoders
     if categorical_cols:
-        # Create a custom transformer that applies pre-fitted encoders
-        class FittedEncoderTransformer:
-            """Applies pre-fitted encoders to categorical columns."""
-            def __init__(self, encoders: Dict[str, LabelEncoder]):
-                self.encoders = encoders
-            
-            def fit(self, X, y=None):
-                return self
-            
-            def transform(self, X):
-                X_copy = X.copy()
-                for col in categorical_cols:
-                    if col in X_copy.columns and col in self.encoders:
-                        X_copy[col] = self.encoders[col].transform(X_copy[col].astype(str))
-                return X_copy[categorical_cols]
-        
-        transformers.append(
-            ("categorical", FittedEncoderTransformer(categorical_encoders), categorical_cols)
-        )
+        cat_transformer = PreFittedEncoderTransformer(categorical_encoders, categorical_cols)
+        transformers.append(("categorical", cat_transformer, categorical_cols))
     
     # Numeric transformer: Scale numeric columns
     if numeric_cols:

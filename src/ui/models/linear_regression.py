@@ -81,8 +81,8 @@ class LinearRegressionModel:
                     ft.Text(
                         "Cardinality warnings: " + "; ".join(warning_msgs),
                         font_family="SF regular",
-                        color=ft.Colors.ORANGE
-                    )
+                    ),
+                    bgcolor="#FF9800"
                 ))
             
             # Return tuple for backward compatibility with train method

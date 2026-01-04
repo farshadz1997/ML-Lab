@@ -97,8 +97,8 @@ class KNNModel:
                     ft.Text(
                         "Cardinality warnings: " + "; ".join(warning_msgs),
                         font_family="SF regular",
-                        color=ft.Colors.ORANGE
-                    )
+                    ),
+                    bgcolor="#FF9800"
                 ))
             
             # Return tuple for backward compatibility with train method
@@ -243,7 +243,7 @@ class KNNModel:
                 metric=hyperparams['metric'],
             )
             
-            model.fit(X_train, y_train.ravel())
+            model.fit(X_train, y_train.to_numpy())
             y_pred = model.predict(X_test)
             
             metrics_dict = calculate_classification_metrics(y_test, y_pred)

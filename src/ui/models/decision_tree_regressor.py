@@ -101,8 +101,8 @@ class DecisionTreeRegressorModel:
                     ft.Text(
                         "Cardinality warnings: " + "; ".join(warning_msgs),
                         font_family="SF regular",
-                        color=ft.Colors.ORANGE
-                    )
+                    ),
+                    bgcolor="#FF9800"
                 ))
             
             # Return tuple for backward compatibility with train method
@@ -261,8 +261,8 @@ class DecisionTreeRegressorModel:
                     ft.Text(
                         "Some hyperparameters were invalid. Using defaults.",
                         font_family="SF regular",
-                        color=ft.Colors.ORANGE
-                    )
+                    ),
+                    bgcolor="#FF9800"
                 ))
             
             # Create and train model with validated parameters
@@ -282,7 +282,7 @@ class DecisionTreeRegressorModel:
             metrics_dict = calculate_regression_metrics(y_test, y_pred)
             
             # Get feature importance for decision tree
-            feature_importance = get_feature_importance(model, feature_cols)
+            feature_importance = get_feature_importance(model, self.df.columns.tolist())
             if feature_importance:
                 metrics_dict['feature_importance'] = feature_importance
             

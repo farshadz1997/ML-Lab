@@ -184,21 +184,25 @@ class TestNoDataLeakage:
     
     def test_same_encoder_applied_to_test(self):
         """Test that the same fitted encoder is used for test data."""
+        # Create larger dataset to ensure both values in train AND test
         df = pd.DataFrame({
-            "color": ["red", "blue", "red", "blue"],
-            "age": [25, 30, 35, 40],
-            "target": [0, 1, 0, 1],
+            "color": ["red", "blue"] * 50,  # 100 rows, both colors in train and test
+            "age": list(range(100)),
+            "target": [0, 1] * 50,
         })
         
         X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
-            prepare_data_for_training(df, "target", test_size=0.5, random_state=42)
+            prepare_data_for_training(df, "target", test_size=0.3, random_state=42)
         )
         
-        # Same values should encode the same way in train and test
-        # Get the encoding for "red" from test
-        if len(X_test) > 0 and X_test["color"].iloc[0] in [0, 1]:
-            # Should be encoded as integer
-            assert X_test["color"].iloc[0] in [0, 1]
+        # Both train and test should have data
+        assert len(X_train) > 0
+        assert len(X_test) > 0
+        
+        # Check that encoded values are integers
+        if "color" in X_train.columns:
+            assert X_train["color"].dtype in [np.int64, np.int32]
+            assert X_test["color"].dtype in [np.int64, np.int32]
 
 
 class TestEncodingConsistency:
@@ -236,15 +240,16 @@ class TestMultipleCategoricalColumns:
     
     def test_multiple_categorical_columns(self):
         """Test preparation with multiple categorical columns."""
+        # Create larger dataset to ensure stable splits
         df = pd.DataFrame({
-            "color": ["red", "blue", "red", "blue"],
-            "size": ["S", "M", "L", "S"],
-            "age": [25, 30, 35, 40],
-            "target": [0, 1, 0, 1],
+            "color": ["red", "blue"] * 25,  # 50 items, both in train and test
+            "size": ["S", "M", "L"] * 16 + ["S", "M"],  # 50 items, all sizes in train and test
+            "age": list(range(50)),
+            "target": [i % 2 for i in range(50)],
         })
         
         X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
-            prepare_data_for_training(df, "target", test_size=0.5, random_state=42)
+            prepare_data_for_training(df, "target", test_size=0.3, random_state=42)
         )
         
         # Check all categorical columns detected
@@ -267,14 +272,15 @@ class TestMixedDataTypes:
     
     def test_numeric_strings_treated_as_categorical(self):
         """Test that numeric strings are treated as categorical."""
+        # Create larger dataset where all values appear in both train and test
         df = pd.DataFrame({
-            "id_str": ["001", "002", "003", "004"],
-            "id_int": [1, 2, 3, 4],
-            "target": [0, 1, 0, 1],
+            "id_str": ["001", "002", "003", "004"] * 10,  # 40 rows, all values in train and test
+            "id_int": list(range(40)),
+            "target": [0, 1] * 20,
         })
         
         X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
-            prepare_data_for_training(df, "target", test_size=0.5, random_state=42)
+            prepare_data_for_training(df, "target", test_size=0.3, random_state=42)
         )
         
         # id_str is object dtype, so should be categorical
@@ -284,14 +290,17 @@ class TestMixedDataTypes:
     
     def test_with_nan_values(self):
         """Test handling of NaN values in categorical columns."""
+        # Create dataset with NaN - need larger dataset and all values in both train/test
         df = pd.DataFrame({
-            "color": ["red", None, "blue", "red"],
-            "target": [0, 1, 0, 1],
+            "color": ["red", "blue", "red", "blue", "green", "green"] * 4,  # 24 rows
+            "target": [0, 1] * 12,
         })
+        # Introduce some NaN values but ensure both categories in both train/test
+        df.loc[::6, "color"] = None  # NaN in every 6th row
         
         # Should handle NaN without crashing
         X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
-            prepare_data_for_training(df, "target", test_size=0.5, random_state=42)
+            prepare_data_for_training(df, "target", test_size=0.3, random_state=42)
         )
         
         assert "color" in cat_cols

@@ -95,8 +95,8 @@ class LogisticRegressionModel:
                     ft.Text(
                         "Cardinality warnings: " + "; ".join(warning_msgs),
                         font_family="SF regular",
-                        color=ft.Colors.ORANGE
-                    )
+                    ),
+                    bgcolor="#FF9800"
                 ))
             
             # Return tuple for backward compatibility with train method
@@ -241,8 +241,8 @@ class LogisticRegressionModel:
                     ft.Text(
                         "Some hyperparameters were invalid. Using defaults.",
                         font_family="SF regular",
-                        color=ft.Colors.ORANGE
-                    )
+                    ),
+                    color="#FF9800"
                 ))
             
             # Create and train model with validated parameters

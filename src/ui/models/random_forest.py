@@ -106,8 +106,8 @@ class RandomForestModel:
                     ft.Text(
                         "Cardinality warnings: " + "; ".join(warning_msgs),
                         font_family="SF regular",
-                        color=ft.Colors.ORANGE
-                    )
+                    ),
+                    color="#FF9800"
                 ))
             
             # Return tuple for backward compatibility with train method
@@ -233,7 +233,7 @@ class RandomForestModel:
             if not params_valid:
                 self.parent.page.open(ft.SnackBar(
                     ft.Text("Invalid hyperparameters. Using default values.", font_family="SF regular"),
-                    bgcolor="#FF9800"  # Orange for warning
+                    bgcolor="#FF9800"
                 ))
             
             # Create model based on task type
@@ -268,7 +268,7 @@ class RandomForestModel:
                 result_text = format_results_markdown(metrics_dict, task_type="regression")
             
             # Add feature importance if available
-            importance = get_feature_importance(model, feature_cols)
+            importance = get_feature_importance(model, self.df.columns.tolist())
             if importance:
                 result_text += "\n\n**Feature Importance:**\n\n"
                 sorted_importance = sorted(importance.items(), key=lambda x: x[1], reverse=True)

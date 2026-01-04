@@ -90,8 +90,8 @@ class AffinityPropagationModel:
                     ft.Text(
                         "Cardinality warnings: " + "; ".join(warning_msgs),
                         font_family="SF regular",
-                        color=ft.Colors.ORANGE
-                    )
+                    ),
+                    bgcolor="#FF9800"
                 ))
             
             # Apply scaling if requested
@@ -192,8 +192,8 @@ class AffinityPropagationModel:
                     ft.Text(
                         "Some hyperparameters were invalid. Using defaults.",
                         font_family="SF regular",
-                        color=ft.Colors.ORANGE
-                    )
+                    ),
+                    bgcolor="#FF9800"
                 ))
             
             # Create and train model

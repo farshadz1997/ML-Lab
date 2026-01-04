@@ -14,7 +14,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
-from src.utils.model_utils import (
+from utils.model_utils import (
     detect_categorical_columns,
     validate_cardinality,
     create_categorical_encoders,

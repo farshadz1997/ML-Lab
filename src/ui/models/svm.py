@@ -28,7 +28,7 @@ from utils.model_utils import (
     format_results_markdown,
     create_results_dialog,
     disable_navigation_bar,
-    enable_navigation_bar
+    enable_navigation_bar,
 )
 from core.data_preparation import prepare_data_for_training
 
@@ -104,8 +104,8 @@ class SVMModel:
                     ft.Text(
                         "Cardinality warnings: " + "; ".join(warning_msgs),
                         font_family="SF regular",
-                        color=ft.Colors.ORANGE
-                    )
+                    ),
+                    bgcolor="#FF9800"
                 ))
             
             # Return tuple for backward compatibility with train method
@@ -242,7 +242,7 @@ class SVMModel:
             if not params_valid:
                 self.parent.page.open(ft.SnackBar(
                     ft.Text("Invalid hyperparameters. Using default values.", font_family="SF regular"),
-                    bgcolor="#FF9800"  # Orange for warning
+                    bgcolor="#FF9800"
                 ))
             
             task_type = self._get_task_type()
