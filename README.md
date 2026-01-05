@@ -12,6 +12,8 @@ A comprehensive desktop application for exploring datasets, training machine lea
   - Handle missing values (detect NaN rows, drop duplicates)
   - Export modified datasets with timestamps
   - Filter and search by row index or range
+  - Replace values in selected columns
+  - Change data types of columns
 
 - **Data Visualization**
   - Interactive charts: scatter plots, histograms, bar charts, box plots, pie charts, heatmaps
