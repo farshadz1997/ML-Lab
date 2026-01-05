@@ -122,6 +122,9 @@ src/
 ├── main.py                 # Application entry point
 ├── core/
 │   └── dataset.py         # Dataset handling and operations
+│   └── data_preparation.py          # Main encoding orchestration
+│       ├── prepare_data_for_training()       - Complete data prep pipeline
+│       └── prepare_data_for_training_no_split() - Clustering variant
 ├── ui/
 │   ├── layout.py          # Main UI layout
 │   ├── data_visualization.py
@@ -129,8 +132,17 @@ src/
 │   ├── model_factory.py    # Model training interface
 │   ├── charts/            # Chart implementations
 │   └── models/            # ML model wrappers
-└── utils/
-    └── model_utils.py     # Model utilities and metrics
+├── utils/
+│    └── model_utils.py     # Model utilities and metrics
+│       ├── detect_categorical_columns()
+│       ├── validate_cardinality()
+│       ├── create_categorical_encoders()
+│       ├── apply_encoders()
+│       ├── get_encoding_mappings()
+│       ├── build_preprocessing_pipeline()
+│       ├── compose_full_model_pipeline()
+│       ├── get_categorical_encoding_info()
+│       └── Data classes: EncodingError, CardinalityWarning, CategoricalEncodingInfo
 ```
 
 ## License
