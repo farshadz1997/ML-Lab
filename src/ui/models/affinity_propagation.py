@@ -122,17 +122,6 @@ class AffinityPropagationModel:
         is_valid = True
         params = {}
         
-        # Validate damping
-        try:
-            damping_value = float(self.damping_field.value)
-            if damping_value <= 0.5 or damping_value >= 1.0:
-                damping_value = 0.9
-                is_valid = False
-            params['damping'] = damping_value
-        except (ValueError, TypeError):
-            params['damping'] = 0.9
-            is_valid = False
-        
         # Validate max_iter
         try:
             max_iter_value = int(self.max_iter_field.value)
@@ -198,7 +187,7 @@ class AffinityPropagationModel:
             
             # Create and train model
             model = AffinityPropagation(
-                damping=hyperparams['damping'],
+                damping=self.damping_field.value / 100,
                 max_iter=hyperparams['max_iter'],
                 convergence_iter=hyperparams['convergence_iter'],
                 preference=hyperparams['preference'],
@@ -214,7 +203,7 @@ class AffinityPropagationModel:
             # Add Affinity Propagation specific metrics
             metrics_dict['n_clusters'] = n_clusters
             metrics_dict['n_exemplars'] = n_exemplars
-            metrics_dict['damping'] = hyperparams['damping']
+            metrics_dict['damping'] = self.damping_field.value / 100
             
             result_text = format_results_markdown(metrics_dict, task_type="clustering")
             
@@ -242,12 +231,13 @@ class AffinityPropagationModel:
     def build_model_control(self) -> ft.Card:
         """Build Flet UI card for Affinity Propagation hyperparameter configuration."""
         
-        self.damping_field = ft.TextField(
-            label="Damping Factor",
-            value="0.9",
-            expand=1,
-            text_style=ft.TextStyle(font_family="SF regular"),
-            label_style=ft.TextStyle(font_family="SF regular"),
+        self.damping_field = ft.Slider(
+            label="0.{value}",
+            value=90,
+            min=50,
+            max=99,
+            divisions=49,
+            expand=4,
             tooltip="Damping factor for convergence. Prevents oscillations. Range: 0.5 to 0.99. Higher values = slower convergence but more stable",
         )
         
@@ -257,6 +247,7 @@ class AffinityPropagationModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Maximum iterations for algorithm. Range: 100 to 10000",
         )
         
@@ -266,6 +257,7 @@ class AffinityPropagationModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Iterations with no change needed to declare convergence. Range: 10 to 1000",
         )
         
@@ -314,8 +306,8 @@ class AffinityPropagationModel:
                                font_family="SF regular",
                                weight="bold",
                                size=14),
-                        ft.Row([self.damping_field, self.max_iter_field]),
-                        self.convergence_iter_field,
+                        ft.Row([ft.Text("Damping", font_family="SF regular", expand=1), self.damping_field]),
+                        ft.Row([self.convergence_iter_field, self.max_iter_field]),
                         self.preference_field,
                         ft.Row([self.train_btn])
                     ]
