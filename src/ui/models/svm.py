@@ -68,7 +68,7 @@ class SVMModel:
         """
         try:
             target_name = self.parent.target_column_dropdown.value
-            test_size = self._validate_test_size()
+            test_size = self.parent.test_size_field.value / 100
             
             # Call spec-compliant data preparation
             (
@@ -142,21 +142,6 @@ class SVMModel:
             return ColumnTransformer(preprocessors, remainder='passthrough')
         else:
             return FunctionTransformer(validate=False)
-    
-    def _validate_test_size(self) -> float:
-        """
-        Validate and return test_size value.
-        
-        Returns:
-            float: Valid test_size between 0.1 and 0.5, default 0.2 if invalid
-        """
-        try:
-            test_size = float(self.parent.test_size_field.value)
-            if test_size < 0.1 or test_size > 0.5:
-                return 0.2
-            return test_size
-        except (ValueError, TypeError, AttributeError):
-            return 0.2
     
     def _validate_hyperparameters(self) -> Tuple[dict, bool]:
         """

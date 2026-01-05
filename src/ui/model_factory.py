@@ -252,18 +252,20 @@ class ModelFactory:
             label_style=ft.TextStyle(font_family="SF regular"),
             expand=1,
             options=[
-                ft.DropdownOption(col, text_style=ft.TextStyle(font_family="SF regular"))
+                ft.DropdownOption(key=col, text=f"{col} ({self.parent.dataset.number_of_unique_values(col)})", text_style=ft.TextStyle(font_family="SF regular"))
                 for col in all_cols
-            ]
+            ],
+            tooltip="Number of unique values shown in parentheses",
         )
         self.target_column_dropdown.value = self.target_column_dropdown.options[0].key
         
-        self.test_size_field = ft.TextField(
-            label="Test Size (0.0-1.0)",
-            label_style=ft.TextStyle(font_family="SF regular"),
-            text_style=ft.TextStyle(font_family="SF regular"),
-            value="0.2",
-            expand=1
+        self.test_size_field = ft.Slider(
+            value=20,
+            min=10,
+            max=50,
+            divisions=40,
+            label="{value}% Test Size",
+            expand=4
         )
         
         self.scaler_dropdown = ft.Dropdown(
@@ -318,7 +320,7 @@ class ModelFactory:
                                                     controls=[
                                                         ft.Text("Data Configuration", font_family="SF regular", weight="bold", size=14),
                                                         self.target_column_dropdown,
-                                                        self.test_size_field,
+                                                        ft.Row([ft.Text("Test Size", font_family="SF regular", expand=2), self.test_size_field]),
                                                         self.scaler_dropdown,
                                                     ]
                                                 ),

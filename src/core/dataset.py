@@ -130,6 +130,15 @@ class DataSet:
         except Exception as e:
             print(e)
             return False
+        
+    def number_of_unique_values(self, column: str) -> int | None:
+        try:
+            if column in self.df.columns:
+                return self.df[column].nunique()
+            return None
+        except Exception as e:
+            print(e)
+            return None
     
     def is_numeric(self, x: Any) -> bool:
         return pd.to_numeric(x, errors="coerce") is not None and not pd.isna(pd.to_numeric(x, errors="coerce"))

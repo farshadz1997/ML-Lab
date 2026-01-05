@@ -45,7 +45,7 @@ class LinearRegressionModel:
         """
         try:
             target_name = self.parent.target_column_dropdown.value
-            test_size = self._validate_test_size()
+            test_size = self.parent.test_size_field.value / 100
             
             # Call spec-compliant data preparation
             (
@@ -125,24 +125,6 @@ class LinearRegressionModel:
             # Return identity transformer if no columns
             return FunctionTransformer(validate=False)
     
-    def _validate_test_size(self) -> float:
-        """
-        Validate test_size input and return safe default if invalid.
-        
-        Returns:
-            float: Valid test_size between 0.1 and 0.5
-        """
-        try:
-            test_size = float(self.parent.test_size_field.value)
-            # Clamp to safe range
-            if test_size < 0.1:
-                return 0.2  # Default
-            elif test_size > 0.5:
-                return 0.2  # Default
-            return test_size
-        except (ValueError, TypeError):
-            return 0.2  # Default if parsing fails
-        
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train linear regression model and display evaluation results."""
         try:
