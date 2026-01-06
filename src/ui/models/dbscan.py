@@ -127,12 +127,14 @@ class DBSCANModel:
             # Validate hyperparameters
             hyperparams = {
                 'eps': float(self.eps_field.value),
-                'min_samples': int(self.min_samples_field.value),
+                'leaf_size': int(self.leaf_size_field.value),
+                'p': float(self.p_field.value.strip()) if self.p_field.value.strip().lower() != "none" else "none"
             }
             
             validation_rules = {
                 'eps': {'type': float, 'min': 0.01, 'max': 100.0},
-                'min_samples': {'type': int, 'min': 1, 'max': 100},
+                'leaf_size': {'type': int, 'min': 1, 'max': 100},
+                'p': {'type': float if isinstance(hyperparams['p'], float) else str, 'allowed': ['None', 'none']}
             }
             
             is_valid, error_msg = validate_hyperparameters(hyperparams, 'dbscan', validation_rules)
@@ -142,12 +144,23 @@ class DBSCANModel:
                 ))
                 return
             
+            if self.p_field.value.strip().lower() == "none":
+                p_value = None
+            else:
+                p_value = float(self.p_field.value.strip())
+            
+            if self.metric_dropdown.value == "minkowski" and p_value is None:
+                p_value = 2
+            
             # Train DBSCAN
             model = DBSCAN(
                 eps=float(self.eps_field.value),
                 min_samples=int(self.min_samples_field.value),
                 metric=self.metric_dropdown.value,
-                p=None if self.metric_dropdown.value != "minkowski" else 2
+                algorithm=self.algorithm_dropdown.value,
+                leaf_size=int(self.leaf_size_field.value),
+                p=p_value
+                # p=None if self.metric_dropdown.value != "minkowski" else 2,
             )
             labels = model.fit_predict(X_scaled)
             
@@ -176,6 +189,28 @@ class DBSCANModel:
             self.train_btn.disabled = False
             self.parent.page.update()
     
+    def _algorithm_on_change(self, e: ft.ControlEvent) -> None:
+        algorithm = e.control.value
+        if algorithm in ("ball_tree", "kd_tree"):
+            self.leaf_size_field.visible = True
+        else:
+            self.leaf_size_field.visible = False
+        self.parent.page.update()
+        
+    def _reset_p_field_to_none(self, e: ft.ControlEvent) -> None:
+        self.p_field.value = "None"
+        self.parent.page.update()
+        
+    def _p_on_click(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "None":
+            e.control.value = ""
+            self.parent.page.update()
+            
+    def _p_on_blur(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "":
+            e.control.value = "None"
+            self.parent.page.update()
+    
     def build_model_control(self) -> ft.Card:
         """Build Flet UI card for DBSCAN hyperparameter configuration."""
         
@@ -188,12 +223,37 @@ class DBSCANModel:
             tooltip="Maximum distance between samples in neighborhood. Smaller=tighter clusters. Range: 0.01-100.0",
         )
         
-        self.min_samples_field = ft.TextField(
-            label="Minimum Samples",
-            value="5",
+        self.leaf_size_field = ft.TextField(
+            label="Leaf size",
+            value="30",
             expand=1,
+            visible=False,
+            input_filter=ft.NumbersOnlyInputFilter(),
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            tooltip="Leaf size passed to BallTree or cKDTree. This can affect the speed of the construction and query, as well as the memory required to store the tree. The optimal value depends on the nature of the problem.",
+        )
+        
+        self.p_field = ft.TextField(
+            label="P",
+            value="None",
+            expand=1,
+            input_filter=ft.InputFilter(r'^[+-]?(\d+(\.\d*)?|\.\d+)$'),
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            on_click=self._p_on_click,
+            on_blur=self._p_on_blur,
+            tooltip="The power of the Minkowski metric to be used to calculate distance between points. If None, then p=2 (equivalent to the Euclidean distance). When p=1, this is equivalent to Manhattan distance",
+            suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, on_click=self._reset_p_field_to_none, tooltip="Reset to None")
+        )
+        
+        self.min_samples_field = ft.Slider(
+            value=5,
+            min=1,
+            max=100,
+            divisions=99,
+            label="{value}",
+            expand=4,
             tooltip="Minimum samples to form a core point. Higher=stricter clustering. Range: 1-100",
         )
         
@@ -209,6 +269,21 @@ class DBSCANModel:
                 ft.DropdownOption("minkowski", text_style=ft.TextStyle(font_family="SF regular")),
             ],
             tooltip="Distance metric for nearest neighbor search. euclidean=straight-line distance, manhattan=grid distance",
+        )
+        
+        self.algorithm_dropdown = ft.Dropdown(
+            label="Algorithm",
+            value="auto",
+            expand=1,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            options=[
+                ft.DropdownOption("auto", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("ball_tree", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("kd_tree", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("brute", text_style=ft.TextStyle(font_family="SF regular")),
+            ],
+            tooltip="Distance metric for nearest neighbor search. euclidean=straight-line distance, manhattan=grid distance",
+            on_change=self._algorithm_on_change
         )
         
         self.train_btn = ft.FilledButton(
@@ -247,9 +322,9 @@ class DBSCANModel:
                                font_family="SF regular",
                                weight="bold",
                                size=14),
-                        self.eps_field,
-                        self.min_samples_field,
-                        self.metric_dropdown,
+                        ft.Row([ft.Text("Minimum samples", expand=2, font_family="SF regular"), self.min_samples_field]),
+                        ft.Row([self.metric_dropdown, self.algorithm_dropdown]),
+                        ft.Row([self.eps_field, self.p_field, self.leaf_size_field]),
                         ft.Row([self.train_btn])
                     ]
                 )
