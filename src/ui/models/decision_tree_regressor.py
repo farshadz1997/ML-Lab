@@ -156,10 +156,13 @@ class DecisionTreeRegressorModel:
         
         # Validate max_depth
         try:
-            max_depth_value = int(self.max_depth_field.value)
-            if max_depth_value < 1 or max_depth_value > 50:
-                max_depth_value = 10
-                is_valid = False
+            if self.max_depth_field.value == "None":
+                max_depth_value = None
+            else:
+                max_depth_value = int(self.max_depth_field.value)
+                if max_depth_value < 1 or max_depth_value > 50:
+                    max_depth_value = 10
+                    is_valid = False
             params['max_depth'] = max_depth_value
         except (ValueError, TypeError):
             params['max_depth'] = 10
@@ -167,7 +170,7 @@ class DecisionTreeRegressorModel:
         
         # Validate min_samples_split
         try:
-            min_split_value = int(self.min_samples_split_field.value)
+            min_split_value = float(self.min_samples_split_field.value)
             if min_split_value < 2 or min_split_value > 20:
                 min_split_value = 2
                 is_valid = False
@@ -178,7 +181,7 @@ class DecisionTreeRegressorModel:
         
         # Validate min_samples_leaf
         try:
-            min_leaf_value = int(self.min_samples_leaf_field.value)
+            min_leaf_value = float(self.min_samples_leaf_field.value)
             if min_leaf_value < 1 or min_leaf_value > 20:
                 min_leaf_value = 1
                 is_valid = False
@@ -289,23 +292,42 @@ class DecisionTreeRegressorModel:
             self.train_btn.disabled = False
             self.parent.page.update()
     
+    def _reset_field_to_none(self, control: ft.TextField) -> None:
+        control.value = "None"
+        self.parent.page.update()
+        
+    def _max_depth_on_click(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "None":
+            e.control.value = ""
+            self.parent.page.update()
+            
+    def _max_depth_on_blur(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "":
+            e.control.value = "None"
+            self.parent.page.update()
+    
     def build_model_control(self) -> ft.Card:
         """Build Flet UI card for decision tree regressor hyperparameter configuration."""
         
         # Create hyperparameter controls
         self.max_depth_field = ft.TextField(
             label="Max Depth",
-            value="10",
+            value="None",
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
-            tooltip="Maximum depth of tree. Range: 1 to 50. Lower values prevent overfitting",
+            input_filter=ft.NumbersOnlyInputFilter(),
+            on_click=self._max_depth_on_click,
+            on_blur=self._max_depth_on_blur,
+            tooltip="The maximum depth of the tree. If None, then nodes are expanded until all leaves are pure or until all leaves contain less than min_samples_split samples. Range: 1 to 50. Lower values prevent overfitting",
+            suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, on_click=lambda _: self._reset_field_to_none(self.max_depth_field), tooltip="Reset to None")
         )
         
         self.min_samples_split_field = ft.TextField(
             label="Min Samples Split",
             value="2",
             expand=1,
+            input_filter=ft.InputFilter(r'^[+-]?(\d+(\.\d*)?|\.\d+)$'),
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             tooltip="Minimum samples required to split node. Range: 2 to 20. Higher values reduce tree complexity",
@@ -315,6 +337,7 @@ class DecisionTreeRegressorModel:
             label="Min Samples Leaf",
             value="1",
             expand=1,
+            input_filter=ft.InputFilter(r'^[+-]?(\d+(\.\d*)?|\.\d+)$'),
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             tooltip="Minimum samples at leaf node. Range: 1 to 20. Higher values create smoother predictions",
