@@ -241,9 +241,9 @@ class DBSCANModel:
             input_filter=ft.InputFilter(r'^[+-]?(\d+(\.\d*)?|\.\d+)$'),
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            tooltip="The power of the Minkowski metric to be used to calculate distance between points. If None, then p=2 (equivalent to the Euclidean distance). When p=1, this is equivalent to Manhattan distance",
             on_click=self._p_on_click,
             on_blur=self._p_on_blur,
-            tooltip="The power of the Minkowski metric to be used to calculate distance between points. If None, then p=2 (equivalent to the Euclidean distance). When p=1, this is equivalent to Manhattan distance",
             suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, on_click=self._reset_p_field_to_none, tooltip="Reset to None")
         )
         

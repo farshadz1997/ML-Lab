@@ -229,6 +229,7 @@ class GaussianMixtureModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Number of Gaussian components (clusters). Range: 2 to 100",
         )
         
@@ -252,6 +253,7 @@ class GaussianMixtureModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Maximum iterations for EM algorithm. Range: 1 to 1000",
         )
         

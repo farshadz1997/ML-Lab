@@ -281,6 +281,20 @@ class RandomForestModel:
             self.train_btn.disabled = False
             self.parent.page.update()
     
+    def _reset_max_depth_to_none(self, e: ft.ControlEvent) -> None:
+        self.max_depth_field.value = "None"
+        self.parent.page.update()
+        
+    def _p_on_click(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "None":
+            e.control.value = ""
+            self.parent.page.update()
+            
+    def _p_on_blur(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "":
+            e.control.value = "None"
+            self.parent.page.update()
+    
     def build_model_control(self) -> ft.Card:
         """Build Flet UI card for random forest hyperparameter configuration."""
         
@@ -290,7 +304,11 @@ class RandomForestModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Number of trees in the forest. Higher values increase computational cost but often improve accuracy. Range: 1-1000",
+            on_click=self._p_on_click,
+            on_blur=self._p_on_blur,
+            suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, on_click=self._reset_max_depth_to_none, tooltip="Reset to None")
         )
         
         self.max_depth_field = ft.TextField(
@@ -308,6 +326,7 @@ class RandomForestModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Minimum samples required to split a node. Higher values prevent overfitting. Range: 2-100",
         )
         

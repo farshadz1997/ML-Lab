@@ -227,6 +227,7 @@ class MeanShiftModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.InputFilter(r'^(\d+(\.\d*)?|\.\d+)$'),
             tooltip="Kernel bandwidth. 0 = auto-estimate from data. Higher values = larger kernels = fewer clusters. Range: 0.01 to 10.0",
         )
         
@@ -243,6 +244,7 @@ class MeanShiftModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Maximum iterations for convergence. Range: 100 to 10000",
         )
         

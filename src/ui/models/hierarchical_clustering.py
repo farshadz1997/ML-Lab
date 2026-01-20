@@ -180,6 +180,7 @@ class HierarchicalClusteringModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Number of clusters to form. Range: 2-100",
         )
         

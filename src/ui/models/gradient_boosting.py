@@ -311,6 +311,7 @@ class GradientBoostingModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Number of boosting stages (iterations). Range: 1-500",
         )
         
@@ -320,6 +321,7 @@ class GradientBoostingModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.InputFilter(r'^(\d+(\.\d*)?|\.\d+)$'),
             tooltip="Step shrinkage (eta). Lower values require more iterations but often better generalization. Range: 0.0001-1.0",
         )
         
@@ -329,6 +331,7 @@ class GradientBoostingModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Maximum depth of weak learners. Typical values 3-10. Range: 1-50",
         )
         
@@ -338,6 +341,7 @@ class GradientBoostingModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Minimum samples required to split a node. Range: 2-100",
         )
         
@@ -347,6 +351,7 @@ class GradientBoostingModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.InputFilter(r'^(\d+(\.\d*)?|\.\d+)$'),
             tooltip="Fraction of samples used for fitting base learners. <1.0 improves generalization. Range: 0.1-1.0",
         )
         

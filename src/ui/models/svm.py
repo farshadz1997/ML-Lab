@@ -287,6 +287,7 @@ class SVMModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.InputFilter(r'^\d+(\.\d*)?|\.\d+$'),
             tooltip="Regularization parameter. Higher C → less regularization. Range: 0.0001-1000",
         )
         
@@ -319,6 +320,7 @@ class SVMModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Polynomial degree. Only used if kernel='poly'. Range: 1-10",
         )
         

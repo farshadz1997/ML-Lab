@@ -273,6 +273,7 @@ class LogisticRegressionModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.InputFilter(r'^(\d+(\.\d*)?|\.\d+)$'),
             tooltip="Inverse of regularization strength; lower values indicate stronger regularization. Range: 0.001 to 100",
         )
         
@@ -282,6 +283,7 @@ class LogisticRegressionModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Maximum number of iterations for solver convergence. Range: 50 to 5000",
         )
         

@@ -195,6 +195,7 @@ class HDBSCANModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Minimum number of samples to form a cluster. Larger=fewer clusters. Range: 2-1000",
         )
         
@@ -204,6 +205,7 @@ class HDBSCANModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Minimum samples to form a core point. Higher=stricter clustering. Range: 1-100",
         )
         

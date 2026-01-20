@@ -129,13 +129,13 @@ class MiniBatchKMeansModel:
             hyperparams = {
                 'n_clusters': int(self.n_clusters_field.value),
                 'batch_size': int(self.batch_size_field.value),
-                'n_init': int(self.n_init_field.value),
+                'n_init': int(self.n_init_field.value) if self.n_init_field.value.strip() != "auto" else "auto",
             }
             
             validation_rules = {
                 'n_clusters': {'type': int, 'min': 2, 'max': 100},
-                'batch_size': {'type': int, 'min': 10, 'max': 1000},
-                'n_init': {'type': int, 'min': 1, 'max': 100},
+                'batch_size': {'type': int},
+                'n_init': {'type': int, 'min': 1, 'max': 100} if self.n_init_field.value.strip() != "auto" else {"type": str, "allowed": ['auto']},
             }
             
             is_valid, error_msg = validate_hyperparameters(hyperparams, 'minibatch_kmeans', validation_rules)
@@ -148,8 +148,9 @@ class MiniBatchKMeansModel:
             # Train MiniBatch K-Means
             model = MiniBatchKMeans(
                 n_clusters=int(self.n_clusters_field.value),
+                init=self.init_dropdown.value,
                 batch_size=int(self.batch_size_field.value),
-                n_init=int(self.n_init_field.value),
+                n_init=int(self.n_init_field.value) if self.n_init_field.value.strip() != "auto" else "auto",
                 random_state=42,
             )
             labels = model.fit_predict(X_scaled)
@@ -179,6 +180,20 @@ class MiniBatchKMeansModel:
             self.train_btn.disabled = False
             self.parent.page.update()
     
+    def _reset_n_init_to_auto(self, e: ft.ControlEvent) -> None:
+        self.n_init_field.value = "auto"
+        self.parent.page.update()
+        
+    def _n_init_on_click(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "auto":
+            e.control.value = ""
+            self.parent.page.update()
+            
+    def _n_init_on_blur(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "":
+            e.control.value = "auto"
+            self.parent.page.update()
+    
     def build_model_control(self) -> ft.Card:
         """Build Flet UI card for MiniBatch K-Means hyperparameter configuration."""
         
@@ -188,25 +203,43 @@ class MiniBatchKMeansModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
-            tooltip="Number of clusters to partition the data into. Range: 2-100",
+            input_filter=ft.NumbersOnlyInputFilter(),
+            tooltip="Number of clusters to partition the data into",
         )
         
         self.batch_size_field = ft.TextField(
             label="Batch Size",
-            value="128",
+            value="1024",
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
-            tooltip="Number of samples per batch. Higher=more computation per batch. Range: 10-1000",
+            input_filter=ft.NumbersOnlyInputFilter(),
+            tooltip="Size of the mini batches. For faster computations, you can set the batch_size greater than 256 * number of cores to enable parallelism on all cores",
+        )
+        
+        self.init_dropdown = ft.Dropdown(
+            label="Initialization",
+            value="k-means++",
+            expand=1,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            options=[
+                ft.DropdownOption("k-means++", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("random", text_style=ft.TextStyle(font_family="SF regular")),
+            ],
+            tooltip="Initialization strategy. k-means++=smart initialization (better), random=random centroids",
         )
         
         self.n_init_field = ft.TextField(
             label="Number of Initializations",
-            value="10",
+            value="auto",
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
-            tooltip="Number of times the algorithm runs with different centroid seeds. Range: 1-100",
+            input_filter=ft.NumbersOnlyInputFilter(),
+            on_click=self._n_init_on_click,
+            on_blur=self._n_init_on_blur,
+            suffix=ft.TextButton('Auto', on_click=self._reset_n_init_to_auto),
+            tooltip="Number of times the algorithm runs with different centroid seeds. Range: 1-100 or 'auto'",
         )
         
         self.train_btn = ft.FilledButton(
@@ -245,8 +278,8 @@ class MiniBatchKMeansModel:
                                font_family="SF regular",
                                weight="bold",
                                size=14),
-                        self.n_clusters_field,
-                        self.batch_size_field,
+                        ft.Row([self.n_clusters_field, self.batch_size_field]),
+                        self.init_dropdown,
                         self.n_init_field,
                         ft.Row([self.train_btn])
                     ]

@@ -263,6 +263,7 @@ class KNNModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Number of nearest neighbors to consider. Lower=faster/more local, Higher=smoother. Range: 1-100",
         )
         

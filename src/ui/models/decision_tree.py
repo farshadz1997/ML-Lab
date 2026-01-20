@@ -295,10 +295,11 @@ class DecisionTreeModel:
         # Create hyperparameter controls
         self.max_depth_field = ft.TextField(
             label="Max Depth",
-            value="10",
+            value="5",
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Maximum depth of tree. Range: 1 to 50. Lower values prevent overfitting",
         )
         
@@ -308,6 +309,7 @@ class DecisionTreeModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Minimum samples required to split node. Range: 2 to 20. Higher values reduce tree complexity",
         )
         
@@ -317,6 +319,7 @@ class DecisionTreeModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Minimum samples at leaf node. Range: 1 to 20. Higher values create smoother decision boundaries",
         )
         
