@@ -457,6 +457,19 @@ def _format_classification_markdown(metrics: Dict[str, Any]) -> str:
         for cls, count in sorted(metrics['class_distribution'].items()):
             md += f"- Class {cls}: {count} samples\n"
     
+    if 'CV' in metrics:
+        md += "\n"
+        md += "---\n"
+        md += f"**Cross Validation scores:** {metrics['CV'].mean():.4f}\n"
+        cvs = metrics['CV']
+        n_folds = len(cvs)
+        for i in range(1, n_folds + 1):
+            md += f" Fold {i} |"
+        md += "\n"
+        md += "|".join(["---"] * n_folds) + "|\n"
+        for score in cvs:
+            md += f"| **{score:.4f}** "
+    
     return md
 
 
@@ -490,6 +503,18 @@ def _format_regression_markdown(metrics: Dict[str, Any]) -> str:
 *MAE is the average absolute difference between predicted and actual values. Lower is better.*
 
 """
+    if 'CV' in metrics:
+        md += "\n"
+        md += "---\n"
+        md += f"**Cross Validation scores:** {metrics['CV'].mean():.4f}\n"
+        cvs = metrics['CV']
+        n_folds = len(cvs)
+        for i in range(1, n_folds + 1):
+            md += f" Fold {i} |"
+        md += "\n"
+        md += "|".join(["---"] * n_folds) + "|\n"
+        for score in cvs:
+            md += f"| **{score:.4f}** "
     
     # Add residual statistics if available
     if 'residual_stats' in metrics and metrics['residual_stats']:

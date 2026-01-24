@@ -17,7 +17,7 @@ from typing import Optional, Tuple, TYPE_CHECKING
 import flet as ft
 from dataclasses import dataclass
 from pandas import DataFrame
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score, KFold
 from sklearn.svm import SVC, SVR
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder, OneHotEncoder, FunctionTransformer
 from sklearn.compose import ColumnTransformer
@@ -30,7 +30,7 @@ from utils.model_utils import (
     disable_navigation_bar,
     enable_navigation_bar,
 )
-from core.data_preparation import prepare_data_for_training
+from core.data_preparation import prepare_data_for_training, prepare_data_for_training_no_split
 
 if TYPE_CHECKING:
     from ..model_factory import ModelFactory
@@ -251,11 +251,21 @@ class SVMModel:
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
             
+            # Cross validation
+            kf = KFold(
+                n_splits=int(self.parent.n_split_slider.value),
+                shuffle=self.parent.cross_val_shuffle_switch.value,
+                random_state=42 if self.parent.cross_val_shuffle_switch.value else None
+            )
+            cv_results = cross_val_score(model, X_train, y_train, cv=kf)
+            
             if task_type == "Classification":
                 metrics_dict = calculate_classification_metrics(y_test, y_pred)
+                metrics_dict["CV"] = cv_results
                 result_text = format_results_markdown(metrics_dict, task_type="classification")
             else:
                 metrics_dict = calculate_regression_metrics(y_test, y_pred)
+                metrics_dict["CV"] = cv_results
                 result_text = format_results_markdown(metrics_dict, task_type="regression")
             
             evaluation_dialog = create_results_dialog(
@@ -321,7 +331,7 @@ class SVMModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Polynomial degree. Only used if kernel='poly'. Range: 1-10",
+            tooltip="Degree of the polynomial kernel function ('poly'). Must be non-negative. Ignored by all other kernels.",
         )
         
         self.train_btn = ft.FilledButton(

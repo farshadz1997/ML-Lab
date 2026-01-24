@@ -3,15 +3,18 @@ from typing import List, Literal, Tuple, TYPE_CHECKING, Optional
 import flet as ft
 from dataclasses import dataclass, field
 from pandas import DataFrame
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score, KFold
 from sklearn.linear_model import LinearRegression
 from sklearn import metrics
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder, OneHotEncoder, FunctionTransformer
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.compose import ColumnTransformer
 
-from utils.model_utils import calculate_regression_metrics, format_results_markdown, create_results_dialog, disable_navigation_bar, enable_navigation_bar
-from core.data_preparation import prepare_data_for_training
+from utils.model_utils import (
+    calculate_regression_metrics, format_results_markdown, create_results_dialog,
+    disable_navigation_bar, enable_navigation_bar
+)
+from core.data_preparation import prepare_data_for_training, prepare_data_for_training_no_split
 
 if TYPE_CHECKING:
     from ..model_factory import ModelFactory
@@ -149,8 +152,17 @@ class LinearRegressionModel:
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
             
+            # Cross validation
+            kf = KFold(
+                n_splits=int(self.parent.n_split_slider.value),
+                shuffle=self.parent.cross_val_shuffle_switch.value,
+                random_state=42 if self.parent.cross_val_shuffle_switch.value else None
+            )
+            cv_results = cross_val_score(model, X_train, y_train, cv=kf)
+            
             # Calculate metrics using centralized utility
             metrics_dict = calculate_regression_metrics(y_test, y_pred)
+            metrics_dict["CV"] = cv_results
             
             # Add intercept to results
             result_text = f"**Model Intercept:** {model.intercept_:.4f}\n\n"

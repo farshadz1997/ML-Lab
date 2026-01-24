@@ -18,7 +18,7 @@ from typing import Optional, Tuple, TYPE_CHECKING
 import flet as ft
 from dataclasses import dataclass
 from pandas import DataFrame
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score, KFold
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder, OneHotEncoder, FunctionTransformer
 from sklearn.compose import ColumnTransformer
@@ -32,7 +32,7 @@ from utils.model_utils import (
     disable_navigation_bar,
     enable_navigation_bar,
 )
-from core.data_preparation import prepare_data_for_training
+from core.data_preparation import prepare_data_for_training, prepare_data_for_training_no_split
 
 if TYPE_CHECKING:
     from ..model_factory import ModelFactory
@@ -171,7 +171,11 @@ class DecisionTreeRegressorModel:
         # Validate min_samples_split
         try:
             min_split_value = float(self.min_samples_split_field.value)
-            if min_split_value < 2 or min_split_value > 20:
+            if 0 < min_split_value <= 1:
+                pass
+            elif min_split_value >= 2:
+                min_split_value = int(min_split_value)
+            else:
                 min_split_value = 2
                 is_valid = False
             params['min_samples_split'] = min_split_value
@@ -182,7 +186,11 @@ class DecisionTreeRegressorModel:
         # Validate min_samples_leaf
         try:
             min_leaf_value = float(self.min_samples_leaf_field.value)
-            if min_leaf_value < 1 or min_leaf_value > 20:
+            if 0 < min_leaf_value < 1:
+                pass
+            elif min_leaf_value >= 1:
+                min_leaf_value = int(min_leaf_value)
+            else:
                 min_leaf_value = 1
                 is_valid = False
             params['min_samples_leaf'] = min_leaf_value
@@ -263,8 +271,17 @@ class DecisionTreeRegressorModel:
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
             
+            # Cross validation
+            kf = KFold(
+                n_splits=int(self.parent.n_split_slider.value),
+                shuffle=self.parent.cross_val_shuffle_switch.value,
+                random_state=42 if self.parent.cross_val_shuffle_switch.value else None
+            )
+            cv_results = cross_val_score(model, X_train, y_train, cv=kf)
+            
             # Calculate metrics using centralized utility
             metrics_dict = calculate_regression_metrics(y_test, y_pred)
+            metrics_dict["CV"] = cv_results
             
             # Get feature importance for decision tree
             feature_importance = get_feature_importance(model, self.df.columns.tolist())
@@ -327,20 +344,20 @@ class DecisionTreeRegressorModel:
             label="Min Samples Split",
             value="2",
             expand=1,
-            input_filter=ft.InputFilter(r'^[+-]?(\d+(\.\d*)?|\.\d+)$'),
+            input_filter=ft.InputFilter(r'^(\d+(\.\d*)?|\.\d+)$'),
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
-            tooltip="Minimum samples required to split node. Range: 2 to 20. Higher values reduce tree complexity",
+            tooltip="Minimum samples required to split node. Range: [2, inf) or a float in the range (0.0, 1.0]. Higher values reduce tree complexity",
         )
         
         self.min_samples_leaf_field = ft.TextField(
             label="Min Samples Leaf",
-            value="1",
+            value="2",
             expand=1,
-            input_filter=ft.InputFilter(r'^[+-]?(\d+(\.\d*)?|\.\d+)$'),
+            input_filter=ft.InputFilter(r'^(\d+(\.\d*)?|\.\d+)$'),
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
-            tooltip="Minimum samples at leaf node. Range: 1 to 20. Higher values create smoother predictions",
+            tooltip="Minimum samples at leaf node. Range: [1, inf) or a float in the range (0.0, 1.0). Higher values create smoother predictions",
         )
         
         self.criterion_dropdown = ft.Dropdown(

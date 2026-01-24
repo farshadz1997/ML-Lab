@@ -107,6 +107,8 @@ class ModelFactory:
             self.model_dropdown.options = CLASSIFICATION_MODELS_OPTIONS
             self.target_column_dropdown.disabled = False
             self.test_size_field.disabled = False
+            self.n_split_slider.disabled = False
+            self.cross_val_shuffle_switch.disabled = False
             self._model_on_change("logistic_regression")
         else:
             self.task_type_dropdown.options = [ft.DropdownOption("Clustering", text_style=ft.TextStyle(font_family="SF regular"))]
@@ -115,6 +117,8 @@ class ModelFactory:
             self.model_dropdown.options = CLUSTERING_MODELS_OPTIONS
             self.target_column_dropdown.disabled = True
             self.test_size_field.disabled = True
+            self.n_split_slider.disabled = True
+            self.cross_val_shuffle_switch.disabled = True
             self._model_on_change("kmeans")
         self.model_dropdown.value = self.model_dropdown.options[0].key
         self.page.update()
@@ -280,6 +284,22 @@ class ModelFactory:
             ]
         )
         
+        self.n_split_slider = ft.Slider(
+            value=5,
+            label="{value}",
+            min=3,
+            max=10,
+            divisions=7,
+            expand=1,
+        )
+        
+        self.cross_val_shuffle_switch = ft.Switch(
+            label="Shuffle",
+            value=False,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            expand=1,
+        )
+        
         self.config_card = LogisticRegressionModel(self, self.parent.dataset.df).build_model_control()
         self.column = ft.Column(
             scroll=ft.ScrollMode.AUTO,
@@ -325,6 +345,16 @@ class ModelFactory:
                                                     ]
                                                 ),
                                             ]
+                                        ),
+                                        ft.Divider(),
+                                        ft.Row([ft.Text("Cross Validation", font_family="SF regular", weight="bold", size=14),]),
+                                        ft.Row(
+                                            controls=[
+                                                ft.Text("n-split", font_family="SF regular", size=14),
+                                                self.n_split_slider,
+                                                self.cross_val_shuffle_switch
+                                            ],
+                                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                                         ),
                                         ft.Row(
                                             alignment=ft.MainAxisAlignment.START,
