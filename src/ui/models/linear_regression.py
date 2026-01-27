@@ -190,13 +190,6 @@ class LinearRegressionModel:
             self.parent.page.update()
         
     def build_model_control(self) -> ft.Card:
-        self.target_col_dropdown = ft.Dropdown(
-            label="Target",
-            value=self.df.columns.tolist()[0],
-            label_style=ft.TextStyle(font_family="SF regular"),
-            expand=1,
-            options=[ft.DropdownOption(col, text_style=ft.TextStyle(font_family="SF regular")) for col in self.df.columns.tolist()]
-        )
         self.fit_intercept_switch = ft.Switch(
             label="Fit intercept",
             tooltip="Whether to calculate the intercept for this model. If set to False, no intercept will be used in calculations (i.e. data is expected to be centered).",
@@ -207,7 +200,7 @@ class LinearRegressionModel:
         self.positive_switch = ft.Switch(
             label="Positive",
             tooltip="When set to True, forces the coefficients to be positive. This option is only supported for dense arrays",
-            label_position=ft.LabelPosition.RIGHT,
+            label_position=ft.LabelPosition.LEFT,
             label_style=ft.TextStyle(font_family="SF regular"),
             value=False,
         )
@@ -236,8 +229,7 @@ class LinearRegressionModel:
                             controls=[ft.Text("Linear regression", font_family="SF thin", size=24, text_align="center", expand=True)]
                         ),
                         ft.Divider(),
-                        self.fit_intercept_switch,
-                        self.positive_switch,
+                        ft.Row([self.fit_intercept_switch, self.positive_switch], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                         ft.Row([self.train_btn])
                     ]
                 )

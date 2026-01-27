@@ -297,7 +297,7 @@ class ModelFactory:
             label="Shuffle",
             value=False,
             label_style=ft.TextStyle(font_family="SF regular"),
-            expand=1,
+            label_position=ft.LabelPosition.LEFT
         )
         
         self.config_card = LogisticRegressionModel(self, self.parent.dataset.df).build_model_control()
