@@ -119,32 +119,6 @@ class RandomForestModel:
             ))
             return None
     
-    def _build_preprocessor(self, categorical_cols: list, numeric_cols: list):
-        """Build preprocessing pipeline for features."""
-        preprocessors = []
-        
-        if numeric_cols:
-            if self.parent.scaler_dropdown.value == "standard_scaler":
-                scaler = StandardScaler()
-            elif self.parent.scaler_dropdown.value == "minmax_scaler":
-                scaler = MinMaxScaler(feature_range=(0, 1))
-            else:
-                scaler = FunctionTransformer(validate=False)
-            
-            preprocessors.append(('numeric', scaler, numeric_cols))
-        
-        if categorical_cols:
-            preprocessors.append((
-                'categorical',
-                OneHotEncoder(sparse_output=False, handle_unknown='ignore'),
-                categorical_cols
-            ))
-        
-        if preprocessors:
-            return ColumnTransformer(preprocessors, remainder='passthrough')
-        else:
-            return FunctionTransformer(validate=False)
-    
     def _validate_hyperparameters(self) -> Tuple[dict, bool]:
         """
         Validate hyperparameters and apply defaults for invalid values.
