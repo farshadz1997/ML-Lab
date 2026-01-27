@@ -192,6 +192,18 @@ class SVMModel:
         except (ValueError, TypeError):
             params['gamma'] = 'scale'
             is_valid = False
+            
+        # Validate Epsilon (Regression)
+        try:
+            epsilon = float(self.epsilon_field.value)
+            if epsilon > 0:
+                params["epsilon"] = epsilon
+            else:
+                params["epsilon"] = 0.1
+                is_valid = False
+        except (ValueError, TypeError):
+            params["epsilon"] = 0.1
+            is_valid = False
         
         # Validate degree (for polynomial kernel)
         try:
@@ -238,6 +250,10 @@ class SVMModel:
                     kernel=hyperparams['kernel'],
                     gamma=hyperparams['gamma'],
                     degree=hyperparams['degree'],
+                    decision_function_shape=self.descision_function_shape_dropdown.value,
+                    shrinking=self.shrinking_switch.value,
+                    probability=self.probability_switch.value,
+                    break_ties=self.break_ties_switch.value if self.descision_function_shape_dropdown.value == "ovr" else False, #! break_ties must be False when decision_function_shape is 'ovo' 
                     random_state=42,
                 )
             else:  # Regression
@@ -246,6 +262,8 @@ class SVMModel:
                     kernel=hyperparams['kernel'],
                     gamma=hyperparams['gamma'],
                     degree=hyperparams['degree'],
+                    epsilon=hyperparams['epsilon'],
+                    shrinking=self.shrinking_switch.value,
                 )
             
             model.fit(X_train, y_train)
@@ -288,6 +306,10 @@ class SVMModel:
             self.train_btn.disabled = False
             self.parent.page.update()
     
+    def _kernel_on_change(self, e: ft.ControlEvent) -> None:
+        self.degree_field.visible = True if e.control.value == "poly" else False
+        self.parent.page.update()
+    
     def build_model_control(self) -> ft.Card:
         """Build Flet UI card for SVM hyperparameter configuration."""
         
@@ -298,7 +320,7 @@ class SVMModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.InputFilter(r'^\d+(\.\d*)?|\.\d+$'),
-            tooltip="Regularization parameter. Higher C → less regularization. Range: 0.0001-1000",
+            tooltip="Regularization parameter. Higher C → less regularization. Range: 0.0001-1000. Regularization parameter. The strength of the regularization is inversely proportional to C. Must be strictly positive. The penalty is a squared l2 penalty.",
         )
         
         self.kernel_dropdown = ft.Dropdown(
@@ -313,6 +335,7 @@ class SVMModel:
                 ft.DropdownOption("sigmoid", text_style=ft.TextStyle(font_family="SF regular")),
             ],
             tooltip="Kernel type. linear=fast/interpretable, rbf=flexible, poly=custom power, sigmoid=neural-like",
+            on_change=self._kernel_on_change
         )
         
         self.gamma_field = ft.TextField(
@@ -328,10 +351,63 @@ class SVMModel:
             label="Degree (poly kernel)",
             value="3",
             expand=1,
+            visible=False,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="Degree of the polynomial kernel function ('poly'). Must be non-negative. Ignored by all other kernels.",
+        )
+        
+        self.descision_function_shape_dropdown = ft.Dropdown(
+            label="Descision function dropdown",
+            value="ovr",
+            expand=1,
+            visible=True if self._get_task_type() == "Classification" else False,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            options=[
+                ft.DropdownOption("ovr", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("ovo", text_style=ft.TextStyle(font_family="SF regular")),
+            ],
+            tooltip="Whether to return a one-vs-rest ('ovr') decision function of shape (n_samples, n_classes) as all other classifiers, or the original one-vs-one ('ovo') decision function of libsvm which has shape (n_samples, n_classes * (n_classes - 1) / 2). However, note that internally, one-vs-one ('ovo') is always used as a multi-class strategy to train models; an ovr matrix is only constructed from the ovo matrix. The parameter is ignored for binary classification."
+        )
+        
+        self.shrinking_switch = ft.Switch(
+            label="Shrinking",
+            value=True,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            label_position=ft.LabelPosition.RIGHT,
+            expand=1 if self._get_task_type() == "Regression" else None,
+            tooltip="Whether to use the shrinking heuristic. See the User Guide <shrinking_svm>."
+        )
+        
+        self.epsilon_field = ft.TextField(
+            label="Epsilon",
+            value="0.1",
+            expand=1,
+            visible=True if self._get_task_type() == "Regression" else False,
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.InputFilter(r'^\d+(\.\d*)?|\.\d+$'),
+            tooltip="Epsilon in the epsilon-SVR model. It specifies the epsilon-tube within which no penalty is associated in the training loss function with points predicted within a distance epsilon from the actual value. Must be non-negative.",
+        )
+        
+        self.probability_switch = ft.Switch(
+            label="Probability",
+            value=False,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            label_position=ft.LabelPosition.LEFT,
+            visible=True if self._get_task_type() == "Classification" else False,
+            tooltip="Whether to enable probability estimates. This must be enabled prior to calling fit, will slow down that method as it internally uses 5-fold cross-validation, and predict_proba may be inconsistent with predict."
+        )
+        
+        self.break_ties_switch = ft.Switch(
+            label="Break ties",
+            value=False,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            label_position=ft.LabelPosition.RIGHT,
+            expand=1,
+            visible=True if self._get_task_type() == "Classification" else False,
+            tooltip="If true, decision_function_shape='ovr', and number of classes > 2, predict will break ties according to the confidence values of decision_function; otherwise the first class among the tied classes is returned. Please note that breaking ties comes at a relatively high computational cost compared to a simple predict."
         )
         
         self.train_btn = ft.FilledButton(
@@ -370,9 +446,14 @@ class SVMModel:
                                font_family="SF regular",
                                weight="bold",
                                size=14),
-                        ft.Row([self.C_field, self.kernel_dropdown]),
-                        self.gamma_field,
-                        self.degree_field,
+                        ft.Row([self.kernel_dropdown, self.degree_field]),
+                        ft.Row([self.C_field, self.gamma_field]),
+                        self.descision_function_shape_dropdown,
+                        ft.Row(
+                            [self.shrinking_switch, self.probability_switch, self.epsilon_field],
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                        ),
+                        self.break_ties_switch,
                         ft.Row([self.train_btn])
                     ]
                 )
