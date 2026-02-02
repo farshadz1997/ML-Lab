@@ -238,7 +238,7 @@ class DBSCANModel:
             label="P",
             value="None",
             expand=1,
-            input_filter=ft.InputFilter(r'^[+-]?(\d+(\.\d*)?|\.\d+)$'),
+            input_filter=ft.InputFilter(r'^$|^[+-]?(\d+(\.\d*)?|\.\d+)$'),
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             tooltip="The power of the Minkowski metric to be used to calculate distance between points. If None, then p=2 (equivalent to the Euclidean distance). When p=1, this is equivalent to Manhattan distance",

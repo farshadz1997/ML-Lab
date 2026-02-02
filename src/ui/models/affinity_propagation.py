@@ -125,7 +125,7 @@ class AffinityPropagationModel:
         # Validate max_iter
         try:
             max_iter_value = int(self.max_iter_field.value)
-            if max_iter_value < 100 or max_iter_value > 10000:
+            if max_iter_value < 0:
                 max_iter_value = 200
                 is_valid = False
             params['max_iter'] = max_iter_value
@@ -136,7 +136,7 @@ class AffinityPropagationModel:
         # Validate convergence_iter
         try:
             convergence_iter_value = int(self.convergence_iter_field.value)
-            if convergence_iter_value < 10 or convergence_iter_value > 1000:
+            if convergence_iter_value < 0:
                 convergence_iter_value = 15
                 is_valid = False
             params['convergence_iter'] = convergence_iter_value
@@ -150,7 +150,8 @@ class AffinityPropagationModel:
             params['preference'] = None  # Will use default
         else:
             try:
-                params['preference'] = float(preference_input)
+                symbol = "+" if self.preference_prefix_btn.icon == ft.Icons.ADD else "-"
+                params['preference'] = float(f"{symbol}{preference_input}")
             except (ValueError, TypeError):
                 params['preference'] = None
                 is_valid = False
@@ -228,12 +229,33 @@ class AffinityPropagationModel:
             self.train_btn.disabled = False
             self.parent.page.update()
     
+    def _preference_field_prefix_icon_on_click(self, e: ft.ControlEvent) -> None:
+        if e.control.icon == ft.Icons.ADD:
+            e.control.icon = ft.Icons.REMOVE
+        else:
+            e.control.icon = ft.Icons.ADD
+        self.parent.page.update()
+        
+    def _reset_preference_field_to_auto(self, e: ft.ControlEvent) -> None:
+        self.preference_field.value = "auto"
+        self.parent.page.update()
+        
+    def _preference_field_on_click(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "auto":
+            e.control.value = ""
+            self.parent.page.update()
+            
+    def _preference_field_on_blur(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "":
+            e.control.value = "auto"
+            self.parent.page.update()
+    
     def build_model_control(self) -> ft.Card:
         """Build Flet UI card for Affinity Propagation hyperparameter configuration."""
         
         self.damping_field = ft.Slider(
             label="0.{value}",
-            value=90,
+            value=50,
             min=50,
             max=99,
             divisions=49,
@@ -248,7 +270,7 @@ class AffinityPropagationModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Maximum iterations for algorithm. Range: 100 to 10000",
+            tooltip="Maximum number of iterations.",
         )
         
         self.convergence_iter_field = ft.TextField(
@@ -258,16 +280,25 @@ class AffinityPropagationModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Iterations with no change needed to declare convergence. Range: 10 to 1000",
+            tooltip="Number of iterations with no change in the number of estimated clusters that stops the convergence.",
         )
         
+        self.preference_prefix_btn = ft.IconButton(ft.Icons.ADD, on_click=self._preference_field_prefix_icon_on_click, scale=0.8)
         self.preference_field = ft.TextField(
             label="Preference (auto=default)",
             value="auto",
             expand=1,
+            dense=True,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
+            shift_enter=False,
+            multiline=False,
             tooltip="Preference for each point to be exemplar. 'auto' uses median of distances. Or specify numeric value",
+            input_filter=ft.NumbersOnlyInputFilter(),
+            prefix=self.preference_prefix_btn,
+            suffix=ft.IconButton(ft.Icons.RESTART_ALT, tooltip="Reset to 'auto'", on_click=self._reset_preference_field_to_auto, scale=0.8),
+            on_click=self._preference_field_on_click,
+            on_blur=self._preference_field_on_blur
         )
         
         self.train_btn = ft.FilledButton(

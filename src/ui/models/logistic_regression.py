@@ -143,7 +143,7 @@ class LogisticRegressionModel:
             is_valid = False
         
         # Validate solver
-        valid_solvers = ['lbfgs', 'liblinear', 'newton-cg', 'sag', 'saga']
+        valid_solvers = ['lbfgs', 'liblinear', 'newton-cg', 'newton-cholesky', 'sag', 'saga']
         solver_value = self.solver_dropdown.value
         if solver_value not in valid_solvers:
             solver_value = 'lbfgs'
@@ -254,7 +254,7 @@ class LogisticRegressionModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
-            input_filter=ft.InputFilter(r'^(\d+(\.\d*)?|\.\d+)$'),
+            input_filter=ft.InputFilter(r'^$|^(\d+(\.\d*)?|\.\d+)$'),
             tooltip="Inverse of regularization strength; lower values indicate stronger regularization. Range: 0.001 to 100",
         )
         
@@ -276,8 +276,10 @@ class LogisticRegressionModel:
             options=[
                 ft.DropdownOption("lbfgs", text_style=ft.TextStyle(font_family="SF regular")),
                 ft.DropdownOption("liblinear", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("saga", text_style=ft.TextStyle(font_family="SF regular")),
                 ft.DropdownOption("newton-cg", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("newton-cholesky", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("sag", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("saga", text_style=ft.TextStyle(font_family="SF regular")),
             ],
             tooltip="Algorithm to use in the optimization problem. lbfgs=default for multiclass, liblinear=faster for binary",
         )

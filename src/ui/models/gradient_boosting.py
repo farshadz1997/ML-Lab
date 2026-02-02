@@ -134,7 +134,7 @@ class GradientBoostingModel:
         # Validate n_estimators
         try:
             n_est = int(self.n_estimators_field.value)
-            if n_est < 1 or n_est > 1000:
+            if n_est < 1:
                 n_est = 100
                 is_valid = False
             params['n_estimators'] = n_est
@@ -145,7 +145,7 @@ class GradientBoostingModel:
         # Validate learning_rate
         try:
             lr = float(self.learning_rate_field.value)
-            if lr <= 0 or lr > 1:
+            if lr < 0:
                 lr = 0.1
                 is_valid = False
             params['learning_rate'] = lr
@@ -296,7 +296,7 @@ class GradientBoostingModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Number of boosting stages (iterations). Range: 1-500",
+            tooltip="The number of boosting stages to perform. Gradient boosting is fairly robust to over-fitting so a large number usually results in better performance. Values must be in the range [1, inf).",
         )
         
         self.learning_rate_field = ft.TextField(
@@ -305,8 +305,8 @@ class GradientBoostingModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
-            input_filter=ft.InputFilter(r'^(\d+(\.\d*)?|\.\d+)$'),
-            tooltip="Step shrinkage (eta). Lower values require more iterations but often better generalization. Range: 0.0001-1.0",
+            input_filter=ft.InputFilter(r'^$|^(\d+(\.\d*)?|\.\d+)$'),
+            tooltip="Learning rate shrinks the contribution of each tree by learning_rate. There is a trade-off between learning_rate and n_estimators. Values must be in the range [0.0, inf).",
         )
         
         self.max_depth_field = ft.TextField(
@@ -335,7 +335,7 @@ class GradientBoostingModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
-            input_filter=ft.InputFilter(r'^(\d+(\.\d*)?|\.\d+)$'),
+            input_filter=ft.InputFilter(r'^$|^(\d+(\.\d*)?|\.\d+)$'),
             tooltip="Fraction of samples used for fitting base learners. <1.0 improves generalization. Range: 0.1-1.0",
         )
         
