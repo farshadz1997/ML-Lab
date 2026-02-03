@@ -130,12 +130,14 @@ class MiniBatchKMeansModel:
                 'n_clusters': int(self.n_clusters_field.value),
                 'batch_size': int(self.batch_size_field.value),
                 'n_init': int(self.n_init_field.value) if self.n_init_field.value.strip() != "auto" else "auto",
+                'max_iter': int(self.max_iter_field.value),
             }
             
             validation_rules = {
-                'n_clusters': {'type': int, 'min': 2, 'max': 100},
-                'batch_size': {'type': int},
+                'n_clusters': {'type': int, 'min': 2},
+                'batch_size': {'type': int, 'min': 1},
                 'n_init': {'type': int, 'min': 1, 'max': 100} if self.n_init_field.value.strip() != "auto" else {"type": str, "allowed": ['auto']},
+                'max_iter': {'type': int, 'min': 1},
             }
             
             is_valid, error_msg = validate_hyperparameters(hyperparams, 'minibatch_kmeans', validation_rules)
@@ -152,6 +154,7 @@ class MiniBatchKMeansModel:
                 batch_size=int(self.batch_size_field.value),
                 n_init=int(self.n_init_field.value) if self.n_init_field.value.strip() != "auto" else "auto",
                 random_state=42,
+                max_iter=int(self.max_iter_field.value),
             )
             labels = model.fit_predict(X_scaled)
             
@@ -204,7 +207,7 @@ class MiniBatchKMeansModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Number of clusters to partition the data into",
+            tooltip="The number of clusters to form as well as the number of centroids to generate.",
         )
         
         self.batch_size_field = ft.TextField(
@@ -214,7 +217,7 @@ class MiniBatchKMeansModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Size of the mini batches. For faster computations, you can set the batch_size greater than 256 * number of cores to enable parallelism on all cores",
+            tooltip="Size of the mini batches. For faster computations, you can set batch_size > 256 * number_of_cores to enable parallelism on all cores.",
         )
         
         self.init_dropdown = ft.Dropdown(
@@ -239,7 +242,17 @@ class MiniBatchKMeansModel:
             on_click=self._n_init_on_click,
             on_blur=self._n_init_on_blur,
             suffix=ft.TextButton('Auto', on_click=self._reset_n_init_to_auto),
-            tooltip="Number of times the algorithm runs with different centroid seeds. Range: 1-100 or 'auto'",
+            tooltip="Number of times the k-means algorithm is run with different centroid seeds. The final results is the best output of n_init consecutive runs in terms of inertia. When n_init='auto', the number of runs depends on the value of init: 10 if using init='random' or init is a callable; 1 if using init='k-means++' or init is an array-like.",
+        )
+
+        self.max_iter_field = ft.TextField(
+            label="Max Iterations",
+            value="100",
+            expand=1,
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
+            tooltip="Maximum number of iterations over the complete dataset before stopping independently of any early stopping criterion heuristics.",
         )
         
         self.train_btn = ft.FilledButton(
@@ -279,7 +292,7 @@ class MiniBatchKMeansModel:
                                weight="bold",
                                size=14),
                         ft.Row([self.n_clusters_field, self.batch_size_field]),
-                        self.init_dropdown,
+                        ft.Row([self.init_dropdown, self.max_iter_field]),
                         self.n_init_field,
                         ft.Row([self.train_btn])
                     ]
