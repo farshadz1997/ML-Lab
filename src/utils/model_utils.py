@@ -26,6 +26,7 @@ from sklearn.metrics import (
     r2_score,
     silhouette_score,
     calinski_harabasz_score,
+    davies_bouldin_score
 )
 from sklearn.preprocessing import LabelEncoder
 from sklearn.compose import ColumnTransformer
@@ -263,6 +264,11 @@ def calculate_regression_metrics(
         rmse = np.sqrt(mse)
         mae = mean_absolute_error(y_true_flat, y_pred_flat)
         
+        # Adjusted R² calculation
+        n = len(y_true_flat)
+        p = y_pred_flat.shape[1] if len(y_pred_flat.shape) > 1 else 1
+        adjusted_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1) if n > p + 1 else 0.0
+
         # Calculate residual statistics
         residuals = y_true_flat - y_pred_flat
         residual_stats = {
@@ -277,6 +283,7 @@ def calculate_regression_metrics(
             'mse': float(mse),
             'rmse': float(rmse),
             'mae': float(mae),
+            'adjusted_r2_score': float(adjusted_r2),
             'residual_stats': residual_stats,
         }
     
@@ -286,6 +293,7 @@ def calculate_regression_metrics(
             'mse': 0.0,
             'rmse': 0.0,
             'mae': 0.0,
+            'adjusted_r2_score': 0.0,
             'residual_stats': {},
             'error': str(e),
         }
@@ -330,10 +338,12 @@ def calculate_clustering_metrics(
         
         sil_score = 0.0
         ch_score = 0.0
+        db_score = 0.0
         
         if n_clusters > 1 and len(X[valid_mask]) > 0:
             sil_score = silhouette_score(X[valid_mask], labels[valid_mask])
             ch_score = calinski_harabasz_score(X[valid_mask], labels[valid_mask])
+            db_score = davies_bouldin_score(X[valid_mask], labels[valid_mask])
         
         # Calculate cluster sizes
         unique, counts = np.unique(labels, return_counts=True)
@@ -342,6 +352,7 @@ def calculate_clustering_metrics(
         return {
             'silhouette_score': float(sil_score),
             'calinski_harabasz_score': float(ch_score),
+            'davies_bouldin_score': float(db_score),
             'n_clusters': int(n_clusters),
             'cluster_sizes': cluster_sizes,
             'n_noise_points': int(n_noise),
@@ -352,6 +363,7 @@ def calculate_clustering_metrics(
         return {
             'silhouette_score': 0.0,
             'calinski_harabasz_score': 0.0,
+            'davies_bouldin_score': 0.0,
             'n_clusters': 0,
             'cluster_sizes': {},
             'n_noise_points': 0,
@@ -486,6 +498,12 @@ def _format_regression_markdown(metrics: Dict[str, Any]) -> str:
 
 ---
 
+**Adjusted R² Score:** {metrics['adjusted_r2_score']:.4f}
+
+*Adjusted R² accounts for the number of predictors (features) in the model. It penalizes adding irrelevant features. Range: [-∞, 1]*
+
+---
+
 **Mean Squared Error (MSE):** {metrics['mse']:.4f}
 
 *MSE is the average of squared differences between predicted and actual values. Lower is better.*
@@ -548,6 +566,12 @@ def _format_clustering_markdown(metrics: Dict[str, Any]) -> str:
 
 ---
 
+**Davies-Bouldin Score:** {metrics['davies_bouldin_score']:.4f}
+
+*Davies-Bouldin score measures average similarity ratio of each cluster with its most similar cluster. Lower is better (well-separated clusters).*
+
+---
+
 **Number of Clusters:** {metrics['n_clusters']}
 
 **Cluster Sizes:**
@@ -565,6 +589,12 @@ def _format_clustering_markdown(metrics: Dict[str, Any]) -> str:
     # Add inertia if available (K-Means)
     if metrics['inertia'] is not None:
         md += f"\n**Inertia:** {metrics['inertia']:.4f}\n\n*Inertia is the sum of squared distances from cluster centers. Lower is better for K-Means.*\n"
+
+    # BIC score and AIC score for Gaussian Mixture Models could be added here if available.
+    if 'bic_score' in metrics:
+        md += "\n---\n"
+        md += f"\n**BIC Score:** {metrics['bic_score']:.4f}\n\n*Bayesian Information Criterion (BIC) for model selection. Lower is better.*\n"
+        md += f"\n**AIC Score:** {metrics['aic_score']:.4f}\n\n*Akaike Information Criterion (AIC) for model selection. Lower is better.*\n"
     
     return md
 
