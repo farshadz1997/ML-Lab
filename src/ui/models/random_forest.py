@@ -134,7 +134,7 @@ class RandomForestModel:
         # Validate n_estimators
         try:
             n_est = int(self.n_estimators_field.value)
-            if n_est < 1 or n_est > 1000:
+            if n_est < 1:
                 n_est = 100
                 is_valid = False
             params['n_estimators'] = n_est
@@ -160,7 +160,7 @@ class RandomForestModel:
         # Validate min_samples_split
         try:
             min_samples = int(self.min_samples_split_field.value)
-            if min_samples < 2 or min_samples > 50:
+            if min_samples < 2:
                 min_samples = 2
                 is_valid = False
             params['min_samples_split'] = min_samples
@@ -269,12 +269,12 @@ class RandomForestModel:
         self.max_depth_field.value = "None"
         self.parent.page.update()
         
-    def _p_on_click(self, e: ft.ControlEvent) -> None:
+    def _max_depth_on_click(self, e: ft.ControlEvent) -> None:
         if e.control.value.strip() == "None":
             e.control.value = ""
             self.parent.page.update()
             
-    def _p_on_blur(self, e: ft.ControlEvent) -> None:
+    def _max_depth_on_blur(self, e: ft.ControlEvent) -> None:
         if e.control.value.strip() == "":
             e.control.value = "None"
             self.parent.page.update()
@@ -289,10 +289,7 @@ class RandomForestModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Number of trees in the forest. Higher values increase computational cost but often improve accuracy. Range: 1-1000",
-            on_click=self._p_on_click,
-            on_blur=self._p_on_blur,
-            suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, on_click=self._reset_max_depth_to_none, tooltip="Reset to None")
+            tooltip="The number of trees in the forest. More trees can improve performance but increase computation time.",
         )
         
         self.max_depth_field = ft.TextField(
@@ -301,7 +298,11 @@ class RandomForestModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
-            tooltip="Maximum depth of trees. Unlimited if 'None'. Lower values prevent overfitting. Range: 1-100 or None",
+            on_click=self._max_depth_on_click,
+            on_blur=self._max_depth_on_blur,
+            suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, on_click=self._reset_max_depth_to_none, tooltip="Reset to None"),
+            input_filter=ft.NumbersOnlyInputFilter(),
+            tooltip="The maximum depth of the tree. If None, then nodes are expanded until all leaves are pure or until all leaves contain less than min_samples_split samples.",
         )
         
         self.min_samples_split_field = ft.TextField(
@@ -311,7 +312,7 @@ class RandomForestModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Minimum samples required to split a node. Higher values prevent overfitting. Range: 2-100",
+            tooltip="The minimum number of samples required to split an internal node",
         )
         
         self.n_jobs_field = ft.TextField(
