@@ -1,4 +1,4 @@
-# ML Model Lab
+# ML Lab
 
 A comprehensive desktop application for exploring datasets, training machine learning models, and evaluating their performance. Built with Python and Flet for a beautiful, cross-platform UI.
 
@@ -24,7 +24,7 @@ A comprehensive desktop application for exploring datasets, training machine lea
   - **Classification Models**: Logistic Regression, Decision Tree, Random Forest, SVM, KNN, Gradient Boosting
   - **Regression Models**: Linear Regression, Decision Tree Regressor, Random Forest
   - **Clustering Models**: K-Means, DBSCAN, Hierarchical Clustering, Gaussian Mixture Models, Mean Shift, HDBSCAN, Affinity Propagation, MiniBatch K-Means
-  - **Dimensionality Reduction**: Elbow locator for optimal cluster selection
+  - **Helper Tools**: Elbow locator for optimal cluster selection
 
 - **Model Configuration**
   - Flexible hyperparameter tuning with validation
@@ -34,7 +34,7 @@ A comprehensive desktop application for exploring datasets, training machine lea
 
 - **Model Evaluation**
   - Classification metrics: Accuracy, Precision, Recall, F1-Score, Confusion Matrix
-  - Regression metrics: R² Score, Mean Squared Error, Mean Absolute Error
+  - Regression metrics: R² Score, Adjusted R² Score, Mean Squared Error, Mean Absolute Error
   - Clustering metrics: Silhouette Score, Davies-Bouldin Index, Calinski-Harabasz Index
   - Detailed results with copy functionality
 
