@@ -95,39 +95,6 @@ class LinearRegressionModel:
             self.parent.page.open(ft.SnackBar(ft.Text(f"Data preparation error: {str(e)}", font_family="SF regular")))
             return None
     
-    def _build_pipeline(self, categorical_cols: list, numeric_cols: list) -> Pipeline:
-        """
-        Build sklearn Pipeline for data preprocessing.
-        
-        Handles both categorical and numeric features with appropriate transformers.
-        """
-        preprocessors = []
-        
-        # Handle numeric columns with scaling
-        if numeric_cols:
-            if self.parent.scaler_dropdown.value == "standard_scaler":
-                scaler = StandardScaler()
-            elif self.parent.scaler_dropdown.value == "minmax_scaler":
-                scaler = MinMaxScaler(feature_range=(0, 1))
-            else:
-                scaler = FunctionTransformer(validate=False)  # No scaling
-            
-            preprocessors.append(('numeric', scaler, numeric_cols))
-        
-        # Handle categorical columns with one-hot encoding
-        if categorical_cols:
-            preprocessors.append((
-                'categorical',
-                OneHotEncoder(sparse_output=False, handle_unknown='ignore'),
-                categorical_cols
-            ))
-        
-        if preprocessors:
-            return ColumnTransformer(preprocessors, remainder='passthrough')
-        else:
-            # Return identity transformer if no columns
-            return FunctionTransformer(validate=False)
-    
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train linear regression model and display evaluation results."""
         try:
