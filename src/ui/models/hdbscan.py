@@ -15,13 +15,8 @@ from typing import Optional, Tuple, TYPE_CHECKING
 import flet as ft
 from dataclasses import dataclass
 from pandas import DataFrame
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, FunctionTransformer
-
-try:
-    from sklearn.cluster import HDBSCAN
-except ImportError:
-    HDBSCAN = None
-
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.cluster._hdbscan.hdbscan import HDBSCAN
 from utils.model_utils import (
     validate_hyperparameters,
     calculate_clustering_metrics,
@@ -132,12 +127,14 @@ class HDBSCANModel:
             # Validate hyperparameters
             hyperparams = {
                 'min_cluster_size': int(self.min_cluster_size_field.value),
-                'min_samples': int(self.min_samples_field.value),
+                'min_samples': int(self.min_samples_field.value) if self.min_samples_field.value.strip() != "None" else None,
+                'leaf_size': int(self.leaf_size_field.value),
             }
             
             validation_rules = {
-                'min_cluster_size': {'type': int, 'min': 2, 'max': 1000},
-                'min_samples': {'type': int, 'min': 1, 'max': 100},
+                'min_cluster_size': {'type': int, 'min': 2},
+                'min_samples': {'type': (int, type(None)), 'min': 1},
+                'leaf_size': {'type': int, 'min': 1},
             }
             
             is_valid, error_msg = validate_hyperparameters(hyperparams, 'hdbscan', validation_rules)
@@ -147,17 +144,12 @@ class HDBSCANModel:
                 ))
                 return
             
-            # Check if HDBSCAN is available
-            if HDBSCAN is None:
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text("HDBSCAN library not installed. Install with: pip install hdbscan", 
-                           font_family="SF regular")
-                ))
-                return
-            
             model = HDBSCAN(
                 min_cluster_size=int(self.min_cluster_size_field.value),
-                min_samples=int(self.min_samples_field.value),
+                min_samples=int(self.min_samples_field.value) if self.min_samples_field.value.strip() != "None" else None,
+                metric=self.metric_dropdown.value,
+                algorithm=self.algorithm_dropdown.value,
+                leaf_size=int(self.leaf_size_field.value),
             )
             labels = model.fit_predict(X_scaled)
             
@@ -186,6 +178,28 @@ class HDBSCANModel:
             self.train_btn.disabled = False
             self.parent.page.update()
     
+    def _reset_field_to_none(self, field: ft.TextField) -> None:
+        field.value = "None"
+        self.parent.page.update()
+        
+    def _field_on_click(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "None":
+            e.control.value = ""
+            self.parent.page.update()
+            
+    def _field_on_blur(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "":
+            e.control.value = "None"
+            self.parent.page.update()
+
+    def _algorithm_on_change(self, e: ft.ControlEvent) -> None:
+        algorithm = e.control.value
+        if algorithm in ("ball_tree", "kd_tree"):
+            self.leaf_size_field.visible = True
+        else:
+            self.leaf_size_field.visible = False
+        self.parent.page.update()
+
     def build_model_control(self) -> ft.Card:
         """Build Flet UI card for HDBSCAN hyperparameter configuration."""
         
@@ -196,19 +210,81 @@ class HDBSCANModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Minimum number of samples to form a cluster. Larger=fewer clusters. Range: 2-1000",
+            tooltip="The minimum number of samples in a group for that group to be considered a cluster; groupings smaller than this size will be left as noise.",
         )
         
+        self.metric_dropdown = ft.Dropdown(
+            label="Distance Metric",
+            value="euclidean",
+            expand=1,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            options=[
+                ft.DropdownOption("euclidean", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("manhattan", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("chebyshev", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("cityblock", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("cosine", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("l1", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("l2", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("nan_euclidean", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("braycurtis", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("canberra", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("correlation", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("dice", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("hamming", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("jaccard", text_style=ft.TextStyle(font_family="SF regular")),
+                # ft.DropdownOption("mahalanobis", text_style=ft.TextStyle(font_family="SF regular")), #! Must provide either V or VI for Mahalanobis distance
+                # ft.DropdownOption("minkowski", text_style=ft.TextStyle(font_family="SF regular")), #! '<' not supported between instances of 'NoneType' and 'int'
+                ft.DropdownOption("rogerstanimoto", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("russellrao", text_style=ft.TextStyle(font_family="SF regular")),
+                # ft.DropdownOption("seuclidean", text_style=ft.TextStyle(font_family="SF regular")), #! __init__() takes exactly 1 positional argument (0 given)
+                ft.DropdownOption("sokalmichener", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("sokalsneath", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("sqeuclidean", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("yule", text_style=ft.TextStyle(font_family="SF regular")),
+            ],
+            tooltip="The metric to use when calculating distance between instances in a feature array. If metric is a string or callable, it must be one of the options allowed by sklearn.metrics.pairwise_distances for its metric parameter. If metric is 'precomputed', X is assumed to be a distance matrix and must be square. X may be a sparse graph, in which case only 'nonzero' elements may be considered neighbors for DBSCAN.",
+        )
+
         self.min_samples_field = ft.TextField(
             label="Minimum Samples",
-            value="5",
+            value="None",
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Minimum samples to form a core point. Higher=stricter clustering. Range: 1-100",
+            suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, on_click=lambda e: self._reset_field_to_none(self.min_samples_field), tooltip="Reset to None"),
+            on_click=self._field_on_click,
+            on_blur=self._field_on_blur,
+            tooltip="The parameter k used to calculate the distance between a point x_p and its k-th nearest neighbor. When None, defaults to min_cluster_size.",
         )
         
+        self.algorithm_dropdown = ft.Dropdown(
+            label="Algorithm",
+            value="auto",
+            expand=1,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            options=[
+                ft.DropdownOption("auto", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("ball_tree", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("kd_tree", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("brute", text_style=ft.TextStyle(font_family="SF regular")),
+            ],
+            tooltip='Exactly which algorithm to use for computing core distances; By default this is set to "auto" which attempts to use a KDTree tree if possible, otherwise it uses a BallTree tree. Both "kd_tree" and "ball_tree" algorithms use the NearestNeighbors estimator. If the X passed during fit is sparse or metric is invalid for both KDTree and BallTree, then it resolves to use the "brute" algorithm.',
+            on_change=self._algorithm_on_change
+        )
+
+        self.leaf_size_field = ft.TextField(
+            label="Leaf size",
+            value="40",
+            expand=1,
+            visible=False,
+            input_filter=ft.NumbersOnlyInputFilter(),
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            tooltip='Leaf size for trees responsible for fast nearest neighbour queries when a KDTree or a BallTree are used as core-distance algorithms. A large dataset size and small leaf_size may induce excessive memory usage. If you are running out of memory consider increasing the leaf_size parameter. Ignored for algorithm="brute".',
+        )
+
         self.train_btn = ft.FilledButton(
             text="Train and evaluate model",
             icon=ft.Icons.PSYCHOLOGY,
@@ -248,7 +324,8 @@ class HDBSCANModel:
                                weight="bold",
                                size=14),
                         self.min_cluster_size_field,
-                        self.min_samples_field,
+                        ft.Row([self.metric_dropdown, self.min_samples_field]),
+                        ft.Row([self.algorithm_dropdown, self.leaf_size_field]),
                         ft.Row([self.train_btn])
                     ]
                 )
