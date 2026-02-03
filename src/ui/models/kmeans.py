@@ -128,11 +128,13 @@ class KMeansModel:
             hyperparams = {
                 'n_clusters': int(self.n_clusters_field.value),
                 'n_init': int(self.n_init_field.value) if self.n_init_field.value.strip() != "auto" else "auto",
+                'max_iter': int(self.max_iter_field.value),
             }
             
             validation_rules = {
-                'n_clusters': {'type': int, 'min': 2, 'max': 100},
-                'n_init': {'type': int} if self.n_init_field.value.strip() != "auto" else {"type": str, "allowd": ["auto"]},
+                'n_clusters': {'type': int, 'min': 2},
+                'n_init': {'type': int} if self.n_init_field.value.strip() != "auto" else {"type": str, "allowed": ["auto"]},
+                'max_iter': {'type': int, 'min': 1},
             }
             
             is_valid, error_msg = validate_hyperparameters(hyperparams, 'kmeans', validation_rules)
@@ -147,6 +149,7 @@ class KMeansModel:
                 n_clusters=int(self.n_clusters_field.value),
                 init=self.init_dropdown.value,
                 n_init=int(self.n_init_field.value) if self.n_init_field.value.strip() != "auto" else "auto",
+                max_iter=int(self.max_iter_field.value),
                 algorithm=self.algorithm_dropdown.value,
                 random_state=42,
             )
@@ -201,9 +204,19 @@ class KMeansModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Number of clusters to partition the data into. Range: 2-100",
+            tooltip="The number of clusters to form as well as the number of centroids to generate.",
         )
         
+        self.max_iter_field = ft.TextField(
+            label="Max Iterations",
+            value="300",
+            expand=1,
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
+            tooltip="Maximum number of iterations of the k-means algorithm for a single run.",
+        )
+
         self.init_dropdown = ft.Dropdown(
             label="Initialization",
             value="k-means++",
@@ -224,7 +237,8 @@ class KMeansModel:
             options=[
                 ft.dropdown.Option("lloyd", text_style=ft.TextStyle(font_family="SF regular")),
                 ft.dropdown.Option("elkan", text_style=ft.TextStyle(font_family="SF regular")),
-            ]
+            ],
+            tooltip='K-means algorithm to use. The classical EM-style algorithm is "lloyd". The "elkan" variation can be more efficient on some datasets with well-defined clusters, by using the triangle inequality. However it’s more memory intensive due to the allocation of an extra array of shape (n_samples, n_clusters).',
         )
         
         self.n_init_field = ft.TextField(
@@ -237,7 +251,7 @@ class KMeansModel:
             on_click=self._n_init_on_click,
             on_blur=self._n_init_on_blur,
             suffix=ft.TextButton('Auto', on_click=self._reset_n_init_to_auto),
-            tooltip="Number of times the algorithm runs with different centroid seeds. Higher=more robust. Range: 1-100",
+            tooltip="Number of times the k-means algorithm is run with different centroid seeds. The final results is the best output of n_init consecutive runs in terms of inertia. When n_init='auto', the number of runs depends on the value of init: 10 if using init='random' or init is a callable; 1 if using init='k-means++' or init is an array-like.",
         )
         
         self.train_btn = ft.FilledButton(
@@ -276,7 +290,7 @@ class KMeansModel:
                                font_family="SF regular",
                                weight="bold",
                                size=14),
-                        self.n_clusters_field,
+                        ft.Row([self.n_clusters_field, self.max_iter_field]),
                         ft.Row([self.init_dropdown, self.algorithm_dropdown]),
                         self.n_init_field,
                         ft.Row([self.train_btn])
