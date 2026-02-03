@@ -123,7 +123,7 @@ class GaussianMixtureModel:
         # Validate n_components
         try:
             n_components_value = int(self.n_components_field.value)
-            if n_components_value < 2 or n_components_value > 100:
+            if n_components_value < 2:
                 n_components_value = 3
                 is_valid = False
             params['n_components'] = n_components_value
@@ -142,7 +142,7 @@ class GaussianMixtureModel:
         # Validate max_iter
         try:
             max_iter_value = int(self.max_iter_field.value)
-            if max_iter_value < 1 or max_iter_value > 1000:
+            if max_iter_value < 1:
                 max_iter_value = 100
                 is_valid = False
             params['max_iter'] = max_iter_value
@@ -185,6 +185,7 @@ class GaussianMixtureModel:
                 n_components=hyperparams['n_components'],
                 covariance_type=hyperparams['covariance_type'],
                 max_iter=hyperparams['max_iter'],
+                init_params=self.init_params_dropdown.value,
                 random_state=42,
             )
             cluster_labels = model.fit_predict(X_scaled)
@@ -230,7 +231,7 @@ class GaussianMixtureModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Number of Gaussian components (clusters). Range: 2 to 100",
+            tooltip="The number of mixture components.",
         )
         
         self.covariance_type_dropdown = ft.Dropdown(
@@ -244,7 +245,29 @@ class GaussianMixtureModel:
                 ft.DropdownOption("diag", text_style=ft.TextStyle(font_family="SF regular")),
                 ft.DropdownOption("spherical", text_style=ft.TextStyle(font_family="SF regular")),
             ],
-            tooltip="'full'=most flexible, 'tied'=same covariance, 'diag'=diagonal, 'spherical'=fastest",
+            tooltip="""String describing the type of covariance parameters to use. Must be one of:
+'full': each component has its own general covariance matrix.
+'tied': all components share the same general covariance matrix.
+'diag': each component has its own diagonal covariance matrix.
+'spherical': each component has its own single variance.""",
+        )
+
+        self.init_params_dropdown = ft.Dropdown(
+            label="Initialization params",
+            value="kmeans",
+            expand=1,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            options=[
+                ft.DropdownOption("kmeans", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("k-means++", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("random", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("random_from_data", text_style=ft.TextStyle(font_family="SF regular")),
+            ],
+            tooltip="""The method used to initialize the weights, the means and the precisions. String must be one of:
+kmeans: responsibilities are initialized using kmeans.
+k-means++: use the k-means++ method to initialize.
+random: responsibilities are initialized randomly.
+random_from_data: initial means are randomly selected data points.""",
         )
         
         self.max_iter_field = ft.TextField(
@@ -254,7 +277,7 @@ class GaussianMixtureModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Maximum iterations for EM algorithm. Range: 1 to 1000",
+            tooltip="The number of EM iterations to perform.",
         )
         
         self.train_btn = ft.FilledButton(
@@ -295,7 +318,7 @@ class GaussianMixtureModel:
                                size=14),
                         self.n_components_field,
                         self.covariance_type_dropdown,
-                        self.max_iter_field,
+                        ft.Row([self.init_params_dropdown,self.max_iter_field]),
                         ft.Row([self.train_btn])
                     ]
                 )
