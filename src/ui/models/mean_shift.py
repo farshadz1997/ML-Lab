@@ -120,18 +120,22 @@ class MeanShiftModel:
         
         # Validate bandwidth
         try:
-            bandwidth_value = float(self.bandwidth_field.value)
-            if bandwidth_value <= 0 or bandwidth_value > 10.0:
-                bandwidth_value = None  # Will use estimate
-                is_valid = False
+            if self.bandwidth_field.value.strip() == "None":
+                bandwidth_value = None
+            else:
+                bandwidth_value = float(self.bandwidth_field.value)
+                if bandwidth_value <= 0:
+                    bandwidth_value = None  # Will use estimate
+                    is_valid = False
             params['bandwidth'] = bandwidth_value
         except (ValueError, TypeError):
             params['bandwidth'] = None
             is_valid = False
         
         # Validate cluster_all
-        cluster_all_value = self.cluster_all_toggle.value
-        params['cluster_all'] = cluster_all_value
+        params['cluster_all'] = self.cluster_all_toggle.value
+        # Validate bin_seeding
+        params['bin_seeding'] = self.bin_seeding_toggle.value
         
         # Validate max_iter
         try:
@@ -184,6 +188,7 @@ class MeanShiftModel:
                 bandwidth=bandwidth,
                 cluster_all=hyperparams['cluster_all'],
                 max_iter=hyperparams['max_iter'],
+                bin_seeding=hyperparams['bin_seeding'],
             )
             cluster_labels = model.fit_predict(X_scaled)
             n_clusters = len(set(cluster_labels))
@@ -218,24 +223,34 @@ class MeanShiftModel:
             self.train_btn.disabled = False
             self.parent.page.update()
     
+    def _reset_field_to_none(self, field: ft.TextField) -> None:
+        field.value = "None"
+        self.parent.page.update()
+        
+    def _field_on_click(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "None":
+            e.control.value = ""
+            self.parent.page.update()
+            
+    def _field_on_blur(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "":
+            e.control.value = "None"
+            self.parent.page.update()
+
     def build_model_control(self) -> ft.Card:
         """Build Flet UI card for Mean Shift hyperparameter configuration."""
         
         self.bandwidth_field = ft.TextField(
-            label="Bandwidth (0=auto-estimate)",
-            value="0",
+            label="Bandwidth",
+            value="None",
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.InputFilter(r'^$|^(\d+(\.\d*)?|\.\d+)$'),
-            tooltip="Kernel bandwidth. 0 = auto-estimate from data. Higher values = larger kernels = fewer clusters. Range: 0.01 to 10.0",
-        )
-        
-        self.cluster_all_toggle = ft.Checkbox(
-            label="Cluster All Points",
-            value=True,
-            label_style=ft.TextStyle(font_family="SF regular"),
-            tooltip="If true, all points are assigned to nearest cluster center. If false, only cluster centers are kept",
+            suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, on_click=lambda e: self._reset_field_to_none(self.bandwidth_field), tooltip="Reset to None"),
+            on_click=self._field_on_click,
+            on_blur=self._field_on_blur,
+            tooltip="Bandwidth used in the flat kernel. If not given, the bandwidth is estimated using sklearn.cluster.estimate_bandwidth. Range: (0.0, inf) or None.",
         )
         
         self.max_iter_field = ft.TextField(
@@ -245,7 +260,22 @@ class MeanShiftModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Maximum iterations for convergence. Range: 100 to 10000",
+            tooltip="Maximum number of iterations, per seed point before the clustering operation terminates (for that seed point), if has not converged yet.",
+        )
+
+        self.cluster_all_toggle = ft.Checkbox(
+            label="Cluster All Points",
+            value=True,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            tooltip="If true, then all points are clustered, even those orphans that are not within any kernel. Orphans are assigned to the nearest kernel. If false, then orphans are given cluster label -1.",
+        )
+
+        self.bin_seeding_toggle = ft.Checkbox(
+            label="Use Bin Seeding",
+            value=False,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            label_position=ft.LabelPosition.LEFT,
+            tooltip="If true, initial kernel locations are not locations of all points, but rather the location of the discretized version of points, where points are binned onto a grid whose coarseness corresponds to the bandwidth. Setting this option to True will speed up the algorithm because fewer seeds will be initialized. The default value is False. Ignored if seeds argument is not None.",
         )
         
         self.train_btn = ft.FilledButton(
@@ -286,7 +316,7 @@ class MeanShiftModel:
                                size=14),
                         self.bandwidth_field,
                         self.max_iter_field,
-                        self.cluster_all_toggle,
+                        ft.Row([self.cluster_all_toggle, self.bin_seeding_toggle], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                         ft.Row([self.train_btn])
                     ]
                 )
