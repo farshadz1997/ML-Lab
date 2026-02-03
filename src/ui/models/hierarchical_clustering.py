@@ -129,7 +129,7 @@ class HierarchicalClusteringModel:
             }
             
             validation_rules = {
-                'n_clusters': {'type': int, 'min': 2, 'max': 100},
+                'n_clusters': {'type': int, 'min': 2},
             }
             
             is_valid, error_msg = validate_hyperparameters(hyperparams, 'hierarchical', validation_rules)
@@ -143,6 +143,7 @@ class HierarchicalClusteringModel:
             model = AgglomerativeClustering(
                 n_clusters=int(self.n_clusters_field.value),
                 linkage=self.linkage_dropdown.value,
+                metric="euclidean" if self.linkage_dropdown.value == "ward" else self.metric_dropdown.value,
             )
             labels = model.fit_predict(X_scaled)
             
@@ -181,9 +182,9 @@ class HierarchicalClusteringModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Number of clusters to form. Range: 2-100",
+            tooltip="Number of clusters to form",
         )
-        
+
         self.linkage_dropdown = ft.Dropdown(
             label="Linkage Criterion",
             value="ward",
@@ -196,6 +197,40 @@ class HierarchicalClusteringModel:
                 ft.DropdownOption("single", text_style=ft.TextStyle(font_family="SF regular")),
             ],
             tooltip="Method for computing distances between cluster. ward=minimum variance, complete=maximum distance, average=average distance, single=minimum distance",
+        )
+        
+        self.metric_dropdown = ft.Dropdown(
+            label="Metric",
+            value="euclidean",
+            expand=1,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            options=[
+                ft.DropdownOption("euclidean", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("l1", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("l2", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("manhattan", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("cosine", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("yule", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("chebyshev", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("rogerstanimoto", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("braycurtis", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("sokalmichener", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("cityblock", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("minkowski", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("jaccard", text_style=ft.TextStyle(font_family="SF regular")),
+                # ft.DropdownOption("precomputed", text_style=ft.TextStyle(font_family="SF regular")), #! Matrix must be square
+                ft.DropdownOption("canberra", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("russellrao", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("dice", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("correlation", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("matching", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("hamming", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("sokalsneath", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("seuclidean", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("mahalanobis", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("sqeuclidean", text_style=ft.TextStyle(font_family="SF regular")),
+            ],
+            tooltip='Metric used to compute the linkage. Can be "euclidean", "l1", "l2", "manhattan", "cosine", or "precomputed". If linkage is "ward", only "euclidean" is accepted. If "precomputed", a distance matrix is needed as input for the fit method. If connectivity is None, linkage is "single" and affinity is not "precomputed" any valid pairwise distance metric can be assigned.',
         )
         
         self.train_btn = ft.FilledButton(
@@ -236,6 +271,7 @@ class HierarchicalClusteringModel:
                                size=14),
                         self.n_clusters_field,
                         self.linkage_dropdown,
+                        self.metric_dropdown,
                         ft.Row([self.train_btn])
                     ]
                 )
