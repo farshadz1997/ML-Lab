@@ -127,14 +127,16 @@ class DBSCANModel:
             # Validate hyperparameters
             hyperparams = {
                 'eps': float(self.eps_field.value),
+                'min_samples': int(self.min_samples_field.value),
                 'leaf_size': int(self.leaf_size_field.value),
                 'p': float(self.p_field.value.strip()) if self.p_field.value.strip().lower() != "none" else "none"
             }
             
             validation_rules = {
-                'eps': {'type': float, 'min': 0.01, 'max': 100.0},
-                'leaf_size': {'type': int, 'min': 1, 'max': 100},
-                'p': {'type': float if isinstance(hyperparams['p'], float) else str, 'allowed': ['None', 'none']}
+                'eps': {'type': float, 'min': 0.01},
+                'min_samples': {'type': int},
+                'leaf_size': {'type': int, 'min': 1},
+                'p': {'type': float if isinstance(hyperparams['p'], float) else str}
             }
             
             is_valid, error_msg = validate_hyperparameters(hyperparams, 'dbscan', validation_rules)
@@ -220,18 +222,8 @@ class DBSCANModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
-            tooltip="Maximum distance between samples in neighborhood. Smaller=tighter clusters. Range: 0.01-100.0",
-        )
-        
-        self.leaf_size_field = ft.TextField(
-            label="Leaf size",
-            value="30",
-            expand=1,
-            visible=False,
-            input_filter=ft.NumbersOnlyInputFilter(),
-            text_style=ft.TextStyle(font_family="SF regular"),
-            label_style=ft.TextStyle(font_family="SF regular"),
-            tooltip="Leaf size passed to BallTree or cKDTree. This can affect the speed of the construction and query, as well as the memory required to store the tree. The optimal value depends on the nature of the problem.",
+            input_filter=ft.InputFilter(r'^$|^(\d+(\.\d*)?|\.\d+)$'),
+            tooltip="The maximum distance between two samples for one to be considered as in the neighborhood of the other. This is not a maximum bound on the distances of points within a cluster. This is the most important DBSCAN parameter to choose appropriately for your data set and distance function.",
         )
         
         self.p_field = ft.TextField(
@@ -246,17 +238,7 @@ class DBSCANModel:
             on_blur=self._p_on_blur,
             suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, on_click=self._reset_p_field_to_none, tooltip="Reset to None")
         )
-        
-        self.min_samples_field = ft.Slider(
-            value=5,
-            min=1,
-            max=100,
-            divisions=99,
-            label="{value}",
-            expand=4,
-            tooltip="Minimum samples to form a core point. Higher=stricter clustering. Range: 1-100",
-        )
-        
+
         self.metric_dropdown = ft.Dropdown(
             label="Distance Metric",
             value="euclidean",
@@ -268,7 +250,17 @@ class DBSCANModel:
                 ft.DropdownOption("chebyshev", text_style=ft.TextStyle(font_family="SF regular")),
                 ft.DropdownOption("minkowski", text_style=ft.TextStyle(font_family="SF regular")),
             ],
-            tooltip="Distance metric for nearest neighbor search. euclidean=straight-line distance, manhattan=grid distance",
+            tooltip="The metric to use when calculating distance between instances in a feature array. If metric is a string or callable, it must be one of the options allowed by sklearn.metrics.pairwise_distances for its metric parameter. If metric is 'precomputed', X is assumed to be a distance matrix and must be square. X may be a sparse graph, in which case only 'nonzero' elements may be considered neighbors for DBSCAN.",
+        )
+
+        self.min_samples_field = ft.TextField(
+            label="Minimum Samples",
+            value="5",
+            expand=1,
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
+            tooltip="The number of samples (or total weight) in a neighborhood for a point to be considered as a core point. This includes the point itself. If min_samples is set to a higher value, DBSCAN will find denser clusters, whereas if it is set to a lower value, the found clusters will be more sparse.",
         )
         
         self.algorithm_dropdown = ft.Dropdown(
@@ -282,10 +274,21 @@ class DBSCANModel:
                 ft.DropdownOption("kd_tree", text_style=ft.TextStyle(font_family="SF regular")),
                 ft.DropdownOption("brute", text_style=ft.TextStyle(font_family="SF regular")),
             ],
-            tooltip="Distance metric for nearest neighbor search. euclidean=straight-line distance, manhattan=grid distance",
+            tooltip="The algorithm to be used by the NearestNeighbors module to compute pointwise distances and find nearest neighbors.",
             on_change=self._algorithm_on_change
         )
         
+        self.leaf_size_field = ft.TextField(
+            label="Leaf size",
+            value="30",
+            expand=1,
+            visible=False,
+            input_filter=ft.NumbersOnlyInputFilter(),
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            tooltip="Leaf size passed to BallTree or cKDTree. This can affect the speed of the construction and query, as well as the memory required to store the tree. The optimal value depends on the nature of the problem.",
+        )
+
         self.train_btn = ft.FilledButton(
             text="Train and evaluate model",
             icon=ft.Icons.PSYCHOLOGY,
@@ -322,9 +325,9 @@ class DBSCANModel:
                                font_family="SF regular",
                                weight="bold",
                                size=14),
-                        ft.Row([ft.Text("Minimum samples", expand=2, font_family="SF regular"), self.min_samples_field]),
-                        ft.Row([self.metric_dropdown, self.algorithm_dropdown]),
-                        ft.Row([self.eps_field, self.p_field, self.leaf_size_field]),
+                        ft.Row([self.eps_field, self.p_field]),
+                        ft.Row([self.metric_dropdown, self.min_samples_field]),
+                        ft.Row([self.algorithm_dropdown, self.leaf_size_field]),
                         ft.Row([self.train_btn])
                     ]
                 )
