@@ -260,7 +260,7 @@ class AffinityPropagationModel:
             max=99,
             divisions=49,
             expand=4,
-            tooltip="Damping factor for convergence. Prevents oscillations. Range: 0.5 to 0.99. Higher values = slower convergence but more stable",
+            tooltip="Damping factor in the range [0.5, 1.0) is the extent to which the current value is maintained relative to incoming values (weighted 1 - damping). This in order to avoid numerical oscillations when updating these values (messages).",
         )
         
         self.max_iter_field = ft.TextField(
@@ -293,7 +293,7 @@ class AffinityPropagationModel:
             label_style=ft.TextStyle(font_family="SF regular"),
             shift_enter=False,
             multiline=False,
-            tooltip="Preference for each point to be exemplar. 'auto' uses median of distances. Or specify numeric value",
+            tooltip="Preferences for each point - points with larger values of preferences are more likely to be chosen as exemplars. The number of exemplars, ie of clusters, is influenced by the input preferences value. If the preferences are not passed as arguments, they will be set to the median of the input similarities.",
             input_filter=ft.NumbersOnlyInputFilter(),
             prefix=self.preference_prefix_btn,
             suffix=ft.IconButton(ft.Icons.RESTART_ALT, tooltip="Reset to 'auto'", on_click=self._reset_preference_field_to_auto, scale=0.8),
