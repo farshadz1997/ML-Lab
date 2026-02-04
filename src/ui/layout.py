@@ -49,6 +49,8 @@ class AppLayout:
         warnings.showwarning = self.warning_handler
     
     def warning_handler(self, message, category, filename, lineno, file=None, line=None):
+        if "Matplotlib" in str(message): # Ignore matplotlib warnings
+            return
         self.page.open(ft.SnackBar(
             ft.Text(f"Warning: {message}", font_family="SF regular"),
             bgcolor=ft.Colors.YELLOW_700,
