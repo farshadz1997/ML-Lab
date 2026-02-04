@@ -1,5 +1,4 @@
-from __future__ import annotations
-import logging, os
+import os
 import flet as ft
 from helpers import resource_path
 from ui.layout import AppLayout

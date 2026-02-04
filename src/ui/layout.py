@@ -1,8 +1,6 @@
-from __future__ import annotations
 import flet as ft
-from typing import List, Literal, Any, TYPE_CHECKING
-from dataclasses import dataclass, field
-from helpers import resource_path
+from dataclasses import dataclass
+import warnings
 from .dataset_explorer import DatasetExplorer
 from .data_visualization import DataVisualization
 from .model_factory import ModelFactory
@@ -48,7 +46,16 @@ class AppLayout:
         self.page.scroll = ft.ScrollMode.ALWAYS
         self.page.controls = [self.home.build_controls()]
         self.page.update()
-        
+        warnings.showwarning = self.warning_handler
+    
+    def warning_handler(self, message, category, filename, lineno, file=None, line=None):
+        self.page.open(ft.SnackBar(
+            ft.Text(f"Warning: {message}", font_family="SF regular"),
+            bgcolor=ft.Colors.YELLOW_700,
+            action="Alright!",
+            duration=20000
+        ))
+
     def on_navigation_change(self, e: ft.ControlEvent):
         nav_index = int(e.data)
         if nav_index == 0:
