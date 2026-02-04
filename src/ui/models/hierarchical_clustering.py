@@ -125,11 +125,13 @@ class HierarchicalClusteringModel:
             
             # Validate hyperparameters
             hyperparams = {
-                'n_clusters': int(self.n_clusters_field.value),
+                'n_clusters': int(self.n_clusters_field.value) if self.n_clusters_field.value.strip() != "None" else None,
+                'distance_threshold': None if self.distance_threshold.value.strip() == "None" else float(self.distance_threshold.value),
             }
             
             validation_rules = {
-                'n_clusters': {'type': int, 'min': 2},
+                'n_clusters': {'type': (int, type(None)), 'min': 2},
+                'distance_threshold': {'type': (float, type(None)), 'min': 0},
             }
             
             is_valid, error_msg = validate_hyperparameters(hyperparams, 'hierarchical', validation_rules)
@@ -140,10 +142,19 @@ class HierarchicalClusteringModel:
                 return
             
             # Train Hierarchical Clustering
+            compute_full_tree_value = self.compute_full_tree_radio_group.value
+            if compute_full_tree_value == "auto":
+                pass
+            elif compute_full_tree_value == "true":
+                compute_full_tree_value = True
+            elif compute_full_tree_value == "false":
+                compute_full_tree_value = False
             model = AgglomerativeClustering(
-                n_clusters=int(self.n_clusters_field.value),
+                n_clusters=None if self.n_clusters_field.value.strip() == "None" else int(self.n_clusters_field.value),
                 linkage=self.linkage_dropdown.value,
-                metric="euclidean" if self.linkage_dropdown.value == "ward" else self.metric_dropdown.value,
+                metric=self.metric_dropdown.value,
+                compute_full_tree=compute_full_tree_value,
+                distance_threshold=None if self.distance_threshold.value.strip() == "None" else float(self.distance_threshold.value),
             )
             labels = model.fit_predict(X_scaled)
             
@@ -171,6 +182,29 @@ class HierarchicalClusteringModel:
             self.parent.enable_model_selection()
             self.train_btn.disabled = False
             self.parent.page.update()
+
+    def _reset_field_to_none(self, field: ft.TextField) -> None:
+        field.value = "None"
+        self.parent.page.update()
+        
+    def _field_on_click(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "None":
+            e.control.value = ""
+            self.parent.page.update()
+            
+    def _field_on_blur(self, e: ft.ControlEvent) -> None:
+        if e.control.value.strip() == "":
+            e.control.value = "None"
+            self.parent.page.update()
+
+    def _linkage_on_change(self, e: ft.ControlEvent) -> None:
+        """Adjust metric dropdown based on linkage selection."""
+        if e.control.value == "ward":
+            self.metric_dropdown.value = "euclidean"
+            self.metric_dropdown.disabled = True
+        else:
+            self.metric_dropdown.disabled = False
+        self.parent.page.update()
     
     def build_model_control(self) -> ft.Card:
         """Build Flet UI card for Hierarchical Clustering hyperparameter configuration."""
@@ -182,6 +216,9 @@ class HierarchicalClusteringModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
+            suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, on_click=lambda e: self._reset_field_to_none(self.n_clusters_field), tooltip="Reset to None"),
+            on_click=self._field_on_click,
+            on_blur=self._field_on_blur,
             tooltip="Number of clusters to form",
         )
 
@@ -196,6 +233,7 @@ class HierarchicalClusteringModel:
                 ft.DropdownOption("average", text_style=ft.TextStyle(font_family="SF regular")),
                 ft.DropdownOption("single", text_style=ft.TextStyle(font_family="SF regular")),
             ],
+            on_change=self._linkage_on_change,
             tooltip="Method for computing distances between cluster. ward=minimum variance, complete=maximum distance, average=average distance, single=minimum distance",
         )
         
@@ -203,6 +241,7 @@ class HierarchicalClusteringModel:
             label="Metric",
             value="euclidean",
             expand=1,
+            disabled=True,  # Initially disabled because default linkage is 'ward'
             label_style=ft.TextStyle(font_family="SF regular"),
             options=[
                 ft.DropdownOption("euclidean", text_style=ft.TextStyle(font_family="SF regular")),
@@ -231,6 +270,48 @@ class HierarchicalClusteringModel:
                 ft.DropdownOption("sqeuclidean", text_style=ft.TextStyle(font_family="SF regular")),
             ],
             tooltip='Metric used to compute the linkage. Can be "euclidean", "l1", "l2", "manhattan", "cosine", or "precomputed". If linkage is "ward", only "euclidean" is accepted. If "precomputed", a distance matrix is needed as input for the fit method. If connectivity is None, linkage is "single" and affinity is not "precomputed" any valid pairwise distance metric can be assigned.',
+        )
+
+        self.distance_threshold = ft.TextField(
+            label="Distance Threshold",
+            value="None",
+            expand=1,
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.InputFilter(r'^$|^(\d+(\.\d*)?|\.\d+)$'),
+            suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, on_click=lambda e: self._reset_field_to_none(self.distance_threshold), tooltip="Reset to None"),
+            on_click=self._field_on_click,
+            on_blur=self._field_on_blur,
+            tooltip="The linkage distance threshold at or above which clusters will not be merged. If not None, n_clusters must be None and compute_full_tree must be True.",
+        )
+
+        self.compute_full_tree_radio_group = ft.RadioGroup(
+            value="auto",
+            content=ft.Row(
+                controls=[
+                    ft.Radio(
+                        label="Auto",
+                        value="auto",
+                        label_style=ft.TextStyle(
+                            font_family="SF regular"
+                        )
+                    ),
+                    ft.Radio(
+                        label="True",
+                        value="true",
+                        label_style=ft.TextStyle(
+                            font_family="SF regular"
+                        )
+                    ),
+                    ft.Radio(
+                        label="False",
+                        value="false",
+                        label_style=ft.TextStyle(
+                            font_family="SF regular"
+                        )
+                    ),
+                ]
+            )
         )
         
         self.train_btn = ft.FilledButton(
@@ -269,9 +350,10 @@ class HierarchicalClusteringModel:
                                font_family="SF regular",
                                weight="bold",
                                size=14),
-                        self.n_clusters_field,
+                        ft.Row([self.n_clusters_field, self.distance_threshold]),
                         self.linkage_dropdown,
                         self.metric_dropdown,
+                        ft.Row([ft.Text("Compute full tree:", font_family="SF regular"), self.compute_full_tree_radio_group]),
                         ft.Row([self.train_btn])
                     ]
                 )
