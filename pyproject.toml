@@ -3,7 +3,7 @@ name = "ML-Lab"
 version = "0.1.0"
 description = "An application to help Data scientists for visualization and testing models faster without coding"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 authors = [
     { name = "Farshad Zargari", email = "farshadzargary1997@gmail.com" }
 ]
@@ -16,7 +16,7 @@ dependencies = [
   "pytest>=8.4.2",
   "scikit-learn>=1.6.1",
   "seaborn>=0.13.2",
-  "setuptools>=80.9.0",
+  "setuptools<=81.0",
   "ydata-profiling>=4.17.0",
 ]
 
