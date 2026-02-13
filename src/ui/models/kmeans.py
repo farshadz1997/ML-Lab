@@ -250,7 +250,7 @@ class KMeansModel:
             input_filter=ft.NumbersOnlyInputFilter(),
             on_click=self._n_init_on_click,
             on_blur=self._n_init_on_blur,
-            suffix=ft.TextButton('Auto', on_click=self._reset_n_init_to_auto),
+            suffix_icon=ft.TextButton('Auto', on_click=self._reset_n_init_to_auto),
             tooltip="Number of times the k-means algorithm is run with different centroid seeds. The final results is the best output of n_init consecutive runs in terms of inertia. When n_init='auto', the number of runs depends on the value of init: 10 if using init='random' or init is a callable; 1 if using init='k-means++' or init is an array-like.",
         )
         

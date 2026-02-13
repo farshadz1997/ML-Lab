@@ -203,9 +203,8 @@ class DatasetExplorer:
             text_style=ft.TextStyle(font_family="SF regular"),
             multiline=False,
             shift_enter=False,
-            dense=True,
             text_align=ft.TextAlign.CENTER,
-            suffix=ft.TextButton(
+            suffix_icon=ft.TextButton(
                 text="String",
                 style=ft.ButtonStyle(text_style=ft.TextStyle(font_family="SF regular")),
                 on_click=_suffix_button_on_click,
@@ -219,9 +218,8 @@ class DatasetExplorer:
             text_style=ft.TextStyle(font_family="SF regular"),
             multiline=False,
             shift_enter=False,
-            dense=True,
             text_align=ft.TextAlign.CENTER,
-            suffix=ft.TextButton(
+            suffix_icon=ft.TextButton(
                 text="String",
                 style=ft.ButtonStyle(text_style=ft.TextStyle(font_family="SF regular")),
                 on_click=_suffix_button_on_click,
@@ -1043,7 +1041,7 @@ class DatasetExplorer:
             text_style=ft.TextStyle(font_family="SF regular"),
             read_only=True,
             expand=6,
-            suffix=self.close_dataset_btn
+            suffix_icon=self.close_dataset_btn
         )
         self.open_dataset_button = ft.FilledButton(
             text="Open dataset",

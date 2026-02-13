@@ -288,15 +288,14 @@ class AffinityPropagationModel:
             label="Preference (auto=default)",
             value="auto",
             expand=1,
-            dense=True,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             shift_enter=False,
             multiline=False,
             tooltip="Preferences for each point - points with larger values of preferences are more likely to be chosen as exemplars. The number of exemplars, ie of clusters, is influenced by the input preferences value. If the preferences are not passed as arguments, they will be set to the median of the input similarities.",
             input_filter=ft.NumbersOnlyInputFilter(),
-            prefix=self.preference_prefix_btn,
-            suffix=ft.IconButton(ft.Icons.RESTART_ALT, tooltip="Reset to 'auto'", on_click=self._reset_preference_field_to_auto, scale=0.8),
+            prefix_icon=self.preference_prefix_btn,
+            suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, tooltip="Reset to 'auto'", on_click=self._reset_preference_field_to_auto, scale=0.8),
             on_click=self._preference_field_on_click,
             on_blur=self._preference_field_on_blur
         )
