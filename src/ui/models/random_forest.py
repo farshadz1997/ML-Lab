@@ -14,7 +14,7 @@ Configurable hyperparameters:
 """
 
 from __future__ import annotations
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple, TYPE_CHECKING, Literal
 import flet as ft
 from dataclasses import dataclass
 from pandas import DataFrame
@@ -49,7 +49,7 @@ class RandomForestModel:
         """Ensure dataset is copied to avoid mutations."""
         self.df = self.df.copy()
     
-    def _get_task_type(self) -> str:
+    def _get_task_type(self) -> Literal["Classification", "Regression"]:
         """Determine if this is classification or regression task."""
         task_type = self.parent.task_type_dropdown.value
         return task_type if task_type in ["Classification", "Regression"] else "Classification"
@@ -167,7 +167,65 @@ class RandomForestModel:
         except (ValueError, TypeError):
             params['min_samples_split'] = 2
             is_valid = False
+
+        # validate min_samples_leaf
+        try:
+            min_samples_leaf = int(self.min_samples_leaf.value)
+            if min_samples_leaf < 1:
+                min_samples_leaf = 1
+                is_valid = False
+            params['min_samples_leaf'] = min_samples_leaf
+        except (ValueError, TypeError):
+            params['min_samples_leaf'] = 1
+            is_valid = False
+
+        # Validate min_weight_fraction_leaf
+        try:
+            min_weight_fraction_leaf = float(self.min_weight_fraction_leaf.value)
+            if min_weight_fraction_leaf < 0 or min_weight_fraction_leaf >= 0.5:
+                min_weight_fraction_leaf = 0
+                is_valid = False
+            params['min_weight_fraction_leaf'] = min_weight_fraction_leaf
+        except (ValueError, TypeError):
+            params['min_weight_fraction_leaf'] = 0
+            is_valid = False
+
+        # validate max_features
+        max_features_val = self.max_features_dropdown.value
+        if max_features_val in ['sqrt', 'log2']:
+            params['max_features'] = max_features_val
+        elif max_features_val == 'None':
+            params['max_features'] = None
+        else:
+            params['max_features'] = 'sqrt' # default
+            is_valid = False
         
+        # validate max_leaf_nodes
+        try:
+            max_leaf_nodes_val = self.max_leaf_nodes_field.value
+            if max_leaf_nodes_val == 'None' or max_leaf_nodes_val == '':
+                params['max_leaf_nodes'] = None
+            else:
+                max_leaf_nodes = int(max_leaf_nodes_val)
+                if max_leaf_nodes < 2:
+                    max_leaf_nodes = None
+                    is_valid = False
+                params['max_leaf_nodes'] = max_leaf_nodes
+        except (ValueError, TypeError):
+            params['max_leaf_nodes'] = None
+            is_valid = False
+        
+        # validate min_impurity_decrease
+        try:
+            min_impurity_decrease = float(self.min_impurity_decrease_field.value)
+            if min_impurity_decrease < 0:
+                min_impurity_decrease = 0
+                is_valid = False
+            params['min_impurity_decrease'] = min_impurity_decrease
+        except (ValueError, TypeError):
+            params['min_impurity_decrease'] = 0
+            is_valid = False
+
         return params, is_valid
     
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
@@ -201,16 +259,32 @@ class RandomForestModel:
             if task_type == "Classification":
                 model = RandomForestClassifier(
                     n_estimators=hyperparams['n_estimators'],
+                    criterion=self.criterion_dropdown.value,
                     max_depth=hyperparams['max_depth'],
                     min_samples_split=hyperparams['min_samples_split'],
+                    min_samples_leaf=hyperparams['min_samples_leaf'],
+                    min_weight_fraction_leaf=hyperparams['min_weight_fraction_leaf'],
+                    max_features=hyperparams['max_features'],
+                    max_leaf_nodes=hyperparams['max_leaf_nodes'],
+                    min_impurity_decrease=hyperparams['min_impurity_decrease'],
+                    bootstrap=self.bootstrap_switch.value,
+                    oob_score=self.oob_score_switch.value,
                     random_state=42,
                     n_jobs=-1,
                 )
             else:  # Regression
                 model = RandomForestRegressor(
                     n_estimators=hyperparams['n_estimators'],
+                    criterion=self.criterion_dropdown.value,
                     max_depth=hyperparams['max_depth'],
                     min_samples_split=hyperparams['min_samples_split'],
+                    min_samples_leaf=hyperparams['min_samples_leaf'],
+                    min_weight_fraction_leaf=hyperparams['min_weight_fraction_leaf'],
+                    max_features=hyperparams['max_features'],
+                    max_leaf_nodes=hyperparams['max_leaf_nodes'],
+                    min_impurity_decrease=hyperparams['min_impurity_decrease'],
+                    bootstrap=self.bootstrap_switch.value,
+                    oob_score=self.oob_score_switch.value,
                     random_state=42,
                     n_jobs=-1,
                 )
@@ -265,20 +339,28 @@ class RandomForestModel:
             self.train_btn.disabled = False
             self.parent.page.update()
     
-    def _reset_max_depth_to_none(self, e: ft.ControlEvent) -> None:
-        self.max_depth_field.value = "None"
+    def _reset_field_to_none(self, control: ft.TextField) -> None:
+        control.value = "None"
         self.parent.page.update()
         
-    def _max_depth_on_click(self, e: ft.ControlEvent) -> None:
+    def _field_on_click(self, e: ft.ControlEvent) -> None:
         if e.control.value.strip() == "None":
             e.control.value = ""
             self.parent.page.update()
             
-    def _max_depth_on_blur(self, e: ft.ControlEvent) -> None:
+    def _field_on_blur(self, e: ft.ControlEvent) -> None:
         if e.control.value.strip() == "":
             e.control.value = "None"
             self.parent.page.update()
     
+    def _bootstrap_switch_on_change(self, e: ft.ControlEvent) -> None:
+        if self.bootstrap_switch.value:
+            self.oob_score_switch.disabled = False
+        else:
+            self.oob_score_switch.value = False
+            self.oob_score_switch.disabled = True
+        self.parent.page.update()
+
     def build_model_control(self) -> ft.Card:
         """Build Flet UI card for random forest hyperparameter configuration."""
         
@@ -292,15 +374,29 @@ class RandomForestModel:
             tooltip="The number of trees in the forest. More trees can improve performance but increase computation time.",
         )
         
+        if self._get_task_type() == "Classification":
+            criterion_options = ['gini', 'entropy', 'log_loss'] # default: gini
+        else:
+            criterion_options = ['squared_error', 'absolute_error', 'friedman_mse', 'poisson'] # default: squared_error
+        self.criterion_dropdown = ft.Dropdown(
+            label="Criterion",
+            value=criterion_options[0],
+            expand=1,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
+            options=[ft.dropdown.Option(key=opt, text=opt) for opt in criterion_options],
+            tooltip="The function to measure the quality of a split.",
+        )
+
         self.max_depth_field = ft.TextField(
             label="Max Depth",
             value="None",
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
-            on_click=self._max_depth_on_click,
-            on_blur=self._max_depth_on_blur,
-            suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, on_click=self._reset_max_depth_to_none, tooltip="Reset to None"),
+            on_click=self._field_on_click,
+            on_blur=self._field_on_blur,
+            suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, on_click=lambda _: self._reset_field_to_none(self.max_depth_field), tooltip="Reset to None"),
             input_filter=ft.NumbersOnlyInputFilter(),
             tooltip="The maximum depth of the tree. If None, then nodes are expanded until all leaves are pure or until all leaves contain less than min_samples_split samples.",
         )
@@ -315,15 +411,79 @@ class RandomForestModel:
             tooltip="The minimum number of samples required to split an internal node",
         )
         
-        self.n_jobs_field = ft.TextField(
-            label="Number of Jobs",
-            value="-1",
+        self.min_samples_leaf = ft.TextField(
+            label="Min Samples in Leaf",
+            value="1",
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
-            tooltip="Number of processors to use. -1 uses all processors. 1 disables parallelism",
+            input_filter=ft.NumbersOnlyInputFilter(),
+            tooltip="The minimum number of samples required to be at a leaf node.",
+        )
+
+        self.min_weight_fraction_leaf = ft.TextField(
+            label="Min Weight Fraction Leaf",
+            value="0",
+            expand=1,
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.InputFilter(r'^$|^(\d+(\.\d*)?|\.\d+)$'),
+            tooltip="The minimum weighted fraction of the sum total of weights (of all the input samples) required to be at a leaf node. Samples have equal weight when sample_weight is not provided.",
         )
         
+        self.max_features_dropdown = ft.Dropdown(
+            label="Max Features",
+            value="sqrt",
+            expand=1,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
+            options=[
+                ft.dropdown.Option(key="sqrt"),
+                ft.dropdown.Option(key="log2"),
+                ft.dropdown.Option(key="None"),
+            ],
+            tooltip="The number of features to consider when looking for the best split.",
+        )
+
+        self.max_leaf_nodes_field = ft.TextField(
+            label="Max Leaf Nodes",
+            value="None",
+            expand=1,
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            on_click=self._field_on_click,
+            on_blur=self._field_on_blur,
+            suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, on_click=lambda _: self._reset_field_to_none(self.max_leaf_nodes_field), tooltip="Reset to None"),
+            input_filter=ft.NumbersOnlyInputFilter(),
+            tooltip="Grow trees with max_leaf_nodes in best-first fashion. Best nodes are defined as relative reduction in impurity. If None then unlimited number of leaf nodes.",
+        )
+
+        self.min_impurity_decrease_field = ft.TextField(
+            label="Min Impurity Decrease",
+            value="0",
+            expand=1,
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.InputFilter(r'^$|^(\d+(\.\d*)?|\.\d+)$'),
+            tooltip="A node will be split if this split induces a decrease of the impurity greater than or equal to this value.",
+        )
+
+        self.bootstrap_switch = ft.Switch(
+            label="Bootstrap",
+            value=True,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            on_change=self._bootstrap_switch_on_change,
+            tooltip="Whether bootstrap samples are used when building trees. If False, the whole dataset is used to build each tree.",
+        )
+
+        self.oob_score_switch = ft.Switch(
+            label="OOB Score",
+            value=False,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            label_position=ft.LabelPosition.LEFT,
+            tooltip="Whether to use out-of-bag samples to estimate the generalization score. By default, accuracy_score is used. Provide a callable with signature metric(y_true, y_pred) to use a custom metric. Only available if bootstrap=True.",
+        )
+
         self.train_btn = ft.FilledButton(
             text="Train and evaluate model",
             icon=ft.Icons.PSYCHOLOGY,
@@ -360,9 +520,12 @@ class RandomForestModel:
                                font_family="SF regular",
                                weight="bold",
                                size=14),
-                        self.n_estimators_field,
-                        self.max_depth_field,
-                        ft.Row([self.min_samples_split_field, self.n_jobs_field]),
+                        ft.Row([self.n_estimators_field, self.max_depth_field]),
+                        self.criterion_dropdown,
+                        ft.Row([self.min_samples_split_field, self.min_samples_leaf]),
+                        ft.Row([self.min_weight_fraction_leaf, self.max_features_dropdown]),
+                        ft.Row([self.max_leaf_nodes_field, self.min_impurity_decrease_field]),
+                        ft.Row([self.bootstrap_switch, self.oob_score_switch], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                         ft.Row([self.train_btn])
                     ]
                 )
