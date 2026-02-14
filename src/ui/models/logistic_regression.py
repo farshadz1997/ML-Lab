@@ -245,7 +245,7 @@ class LogisticRegressionModel:
                         "Some hyperparameters were invalid. Using defaults.",
                         font_family="SF regular",
                     ),
-                    color="#FF9800"
+                    bgcolor="#FF9800"
                 ))
             
             # Create and train model with validated parameters
@@ -487,8 +487,8 @@ None: no penalty is added;
             label="Fit Intercept",
             value=True,
             label_style=ft.TextStyle(font_family="SF regular"),
-            label_position=ft.LabelPosition.LEFT,
-            # expand=1,
+            label_position=ft.LabelPosition.RIGHT,
+            expand=1,
             tooltip="Specifies if a constant (a.k.a. bias or intercept) should be added to the decision function.",
             visible=False,  # Hidden for now to simplify UI, only useful for 'liblinear'
             on_change=self._fit_intercept_switch_on_change
@@ -499,8 +499,7 @@ None: no penalty is added;
             value="1.0",
             label_style=ft.TextStyle(font_family="SF regular"),
             text_style=ft.TextStyle(font_family="SF regular"),
-            # expand=1,
-            width=150,
+            expand=1,
             input_filter=ft.InputFilter(r'^$|^(\d+(\.\d*)?|\.\d+)$'),
             visible=False,  # Hidden for now to simplify UI, only useful for 'liblinear' solver when fit_intercept=True
             tooltip="Useful only when the solver liblinear is used and self.fit_intercept is set to True. In this case, x becomes [x, self.intercept_scaling], i.e. a “synthetic” feature with constant value equal to intercept_scaling is appended to the instance vector. The intercept becomes intercept_scaling * synthetic_feature_weight."
@@ -545,7 +544,7 @@ None: no penalty is added;
                         ft.Row([self.C_field, self.l1_ratio_field]),
                         ft.Row([self.solver_dropdown, self.class_weight_dropdown]),
                         ft.Row([self.penalty_dropdown, self.max_iter_field]),
-                        ft.Row([self.intercept_scaling_field, self.fit_intercept_switch], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                        ft.Row([self.fit_intercept_switch, self.intercept_scaling_field]),
                         ft.Row([self.train_btn])
                     ]
                 )
