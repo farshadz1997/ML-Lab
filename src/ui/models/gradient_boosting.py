@@ -14,7 +14,7 @@ Configurable hyperparameters:
 """
 
 from __future__ import annotations
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple, TYPE_CHECKING, Literal
 import flet as ft
 from dataclasses import dataclass
 from pandas import DataFrame
@@ -49,7 +49,7 @@ class GradientBoostingModel:
         """Ensure dataset is copied to avoid mutations."""
         self.df = self.df.copy()
     
-    def _get_task_type(self) -> str:
+    def _get_task_type(self) -> Literal["Classification", "Regression"]:
         """Determine if this is classification or regression task."""
         task_type = self.parent.task_type_dropdown.value
         return task_type if task_type in ["Classification", "Regression"] else "Classification"
@@ -171,7 +171,7 @@ class GradientBoostingModel:
         # Validate min_samples_split
         try:
             min_samples = int(self.min_samples_split_field.value)
-            if min_samples < 2 or min_samples > 50:
+            if min_samples < 2:
                 min_samples = 2
                 is_valid = False
             params['min_samples_split'] = min_samples
@@ -188,6 +188,28 @@ class GradientBoostingModel:
             params['subsample'] = subsample
         except (ValueError, TypeError):
             params['subsample'] = 1.0
+            is_valid = False
+            
+        # validate min_samples_leaf
+        try:
+            min_samples_leaf = int(self.min_samples_leaf_field.value)
+            if min_samples_leaf < 1:
+                min_samples_leaf = 1
+                is_valid = False
+            params['min_samples_leaf'] = min_samples_leaf
+        except (ValueError, TypeError):
+            params['min_samples_leaf'] = 1
+            is_valid = False
+            
+        # Validate min_weight_fraction_leaf
+        try:
+            min_weight_fraction_leaf = float(self.min_weight_fraction_leaf.value)
+            if min_weight_fraction_leaf < 0 or min_weight_fraction_leaf >= 0.5:
+                min_weight_fraction_leaf = 0
+                is_valid = False
+            params['min_weight_fraction_leaf'] = min_weight_fraction_leaf
+        except (ValueError, TypeError):
+            params['min_weight_fraction_leaf'] = 0
             is_valid = False
         
         return params, is_valid
@@ -221,20 +243,28 @@ class GradientBoostingModel:
             
             if task_type == "Classification":
                 model = GradientBoostingClassifier(
+                    loss=self.loss_dropdown.value,
                     n_estimators=hyperparams['n_estimators'],
                     learning_rate=hyperparams['learning_rate'],
                     max_depth=hyperparams['max_depth'],
                     min_samples_split=hyperparams['min_samples_split'],
+                    min_samples_leaf=hyperparams['min_samples_leaf'],
+                    min_weight_fraction_leaf=hyperparams['min_weight_fraction_leaf'],
                     subsample=hyperparams['subsample'],
+                    criterion=self.criterion_dropdown.value,
                     random_state=42,
                 )
             else:  # Regression
                 model = GradientBoostingRegressor(
+                    loss=self.loss_dropdown.value,
                     n_estimators=hyperparams['n_estimators'],
                     learning_rate=hyperparams['learning_rate'],
                     max_depth=hyperparams['max_depth'],
                     min_samples_split=hyperparams['min_samples_split'],
+                    min_samples_leaf=hyperparams['min_samples_leaf'],
+                    min_weight_fraction_leaf=hyperparams['min_weight_fraction_leaf'],
                     subsample=hyperparams['subsample'],
+                    criterion=self.criterion_dropdown.value,
                     random_state=42,
                 )
             
@@ -296,7 +326,45 @@ class GradientBoostingModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="The number of boosting stages to perform. Gradient boosting is fairly robust to over-fitting so a large number usually results in better performance. Values must be in the range [1, inf).",
+            hint_text="Range: [1, inf)",
+            hint_style=ft.TextStyle(font_family="SF regular"),
+            tooltip="The number of boosting stages to perform. Gradient boosting is fairly robust to over-fitting so a large number usually results in better performance.",
+        )
+        
+        self.loss_dropdown = ft.Dropdown(
+            label="Loss",
+            expand=1,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
+            tooltip="The loss function to be optimized. ‘log_loss’ refers to binomial and multinomial deviance, the same as used in logistic regression. It is a good choice for classification with probabilistic outputs. For loss ‘exponential’, gradient boosting recovers the AdaBoost algorithm.",
+        )
+        
+        if self._get_task_type() == "Regression":
+            self.loss_dropdown.options = [
+                ft.dropdown.Option("squared_error"),
+                ft.dropdown.Option("absolute_error"),
+                ft.dropdown.Option("huber"),
+                ft.dropdown.Option("quantile"),
+            ]
+            self.loss_dropdown.value = "squared_error"
+        else:
+            self.loss_dropdown.options = [
+                ft.dropdown.Option("log_loss"),
+                ft.dropdown.Option("exponential"),
+            ]   
+            self.loss_dropdown.value = "log_loss"
+        
+        self.criterion_dropdown = ft.Dropdown(
+            label="Criterion",
+            value="friedman_mse",
+            expand=1,
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            options=[
+                ft.dropdown.Option("friedman_mse"),
+                ft.dropdown.Option("squared_error"),
+            ],
+            tooltip="The function to measure the quality of a split. Supported criteria are ‘friedman_mse’ for the mean squared error with improvement score by Friedman, ‘squared_error’ for mean squared error. The default value of ‘friedman_mse’ is generally the best as it can provide a better approximation in some cases.",
         )
         
         self.learning_rate_field = ft.TextField(
@@ -306,7 +374,9 @@ class GradientBoostingModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.InputFilter(r'^$|^(\d+(\.\d*)?|\.\d+)$'),
-            tooltip="Learning rate shrinks the contribution of each tree by learning_rate. There is a trade-off between learning_rate and n_estimators. Values must be in the range [0.0, inf).",
+            hint_text="Range: [0.0, inf)",
+            hint_style=ft.TextStyle(font_family="SF regular"),
+            tooltip="Learning rate shrinks the contribution of each tree by learning_rate. There is a trade-off between learning_rate and n_estimators.",
         )
         
         self.max_depth_field = ft.TextField(
@@ -316,7 +386,9 @@ class GradientBoostingModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Maximum depth of weak learners. Typical values 3-10. Range: 1-50",
+            hint_text="Range: [1, inf)",
+            hint_style=ft.TextStyle(font_family="SF regular"),
+            tooltip="Maximum depth of the individual regression estimators. The maximum depth limits the number of nodes in the tree. Tune this parameter for best performance; the best value depends on the interaction of the input variables. If None, then nodes are expanded until all leaves are pure or until all leaves contain less than min_samples_split samples. If int, values must be in the range [1, inf)",
         )
         
         self.min_samples_split_field = ft.TextField(
@@ -326,7 +398,45 @@ class GradientBoostingModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.NumbersOnlyInputFilter(),
-            tooltip="Minimum samples required to split a node. Range: 2-100",
+            hint_text="Range: [2, inf)",
+            hint_style=ft.TextStyle(font_family="SF regular"),
+            tooltip="The minimum number of samples required to split an internal node",
+        )
+        
+        self.min_samples_leaf_field = ft.TextField(
+            label="Min Samples per Leaf",
+            value="1",
+            expand=1,
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
+            hint_text="Range: [1, inf)",
+            hint_style=ft.TextStyle(font_family="SF regular"),
+            tooltip="The minimum number of samples required to be at a leaf node. A split point at any depth will only be considered if it leaves at least min_samples_leaf training samples in each of the left and right branches. This may have the effect of smoothing the model, especially in regression.",
+        )
+        
+        self.min_weight_fraction_leaf = ft.TextField(
+            label="Min Weight Fraction Leaf",
+            value="0",
+            expand=1,
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.InputFilter(r'^$|^(\d+(\.\d*)?|\.\d+)$'),
+            hint_text="Range: [0.0, 0.5]",
+            hint_style=ft.TextStyle(font_family="SF regular"),
+            tooltip="The minimum weighted fraction of the sum total of weights (of all the input samples) required to be at a leaf node. Samples have equal weight when sample_weight is not provided.",
+        )
+        
+        self.min_impurity_decrease_field = ft.TextField(
+            label="Min Impurity Decrease",
+            value="0",
+            expand=1,
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.InputFilter(r'^$|^(\d+(\.\d*)?|\.\d+)$'),
+            hint_text="Range: [0.0, inf)",
+            hint_style=ft.TextStyle(font_family="SF regular"),
+            tooltip="A node will be split if this split induces a decrease of the impurity greater than or equal to this value.",
         )
         
         self.subsample_field = ft.TextField(
@@ -336,7 +446,9 @@ class GradientBoostingModel:
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
             input_filter=ft.InputFilter(r'^$|^(\d+(\.\d*)?|\.\d+)$'),
-            tooltip="Fraction of samples used for fitting base learners. <1.0 improves generalization. Range: 0.1-1.0",
+            hint_text="Range: (0.0, 1.0]",
+            hint_style=ft.TextStyle(font_family="SF regular"),
+            tooltip="The fraction of samples to be used for fitting the individual base learners. If smaller than 1.0 this results in Stochastic Gradient Boosting. subsample interacts with the parameter n_estimators. Choosing subsample < 1.0 leads to a reduction of variance and an increase in bias.",
         )
         
         self.train_btn = ft.FilledButton(
@@ -376,9 +488,11 @@ class GradientBoostingModel:
                             weight="bold",
                             size=14
                         ),
-                        self.n_estimators_field,
+                        ft.Row([self.n_estimators_field, self.loss_dropdown]),
                         ft.Row([self.learning_rate_field, self.max_depth_field]),
-                        ft.Row([self.min_samples_split_field, self.subsample_field]),
+                        ft.Row([self.min_samples_split_field, self.min_samples_leaf_field]),
+                        ft.Row([self.min_impurity_decrease_field, self.subsample_field]),
+                        self.criterion_dropdown,
                         ft.Row([self.train_btn])
                     ]
                 )
