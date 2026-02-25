@@ -132,7 +132,7 @@ class SVMModel:
         # Validate C
         try:
             c_value = float(self.C_field.value)
-            if c_value <= 0 or c_value > 1000:
+            if c_value <= 0:
                 c_value = 1.0
                 is_valid = False
             params['C'] = c_value
@@ -154,12 +154,12 @@ class SVMModel:
         
         # Validate gamma
         try:
-            gamma = self.gamma_field.value
-            if gamma == 'scale' or gamma == 'auto':
+            gamma = self.gamma_field.value.strip()
+            if gamma in ('scale', 'auto'):
                 params['gamma'] = gamma
             else:
                 gamma_float = float(gamma)
-                if gamma_float <= 0 or gamma_float > 1:
+                if gamma_float <= 0:
                     gamma_float = 0.1
                     is_valid = False
                 params['gamma'] = gamma_float
@@ -293,8 +293,8 @@ class SVMModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
-            input_filter=ft.InputFilter(r'^\d+(\.\d*)?|\.\d+$'),
-            tooltip="Regularization parameter. Higher C → less regularization. Range: 0.0001-1000. Regularization parameter. The strength of the regularization is inversely proportional to C. Must be strictly positive. The penalty is a squared l2 penalty.",
+            input_filter=ft.InputFilter(r'^$|^(\d+(\.\d*)?|\.\d+)$'),
+            tooltip="Regularization parameter. The strength of the regularization is inversely proportional to C. Must be strictly positive. The penalty is a squared l2 penalty.",
         )
         
         self.kernel_dropdown = ft.Dropdown(
@@ -318,7 +318,7 @@ class SVMModel:
             expand=1,
             text_style=ft.TextStyle(font_family="SF regular"),
             label_style=ft.TextStyle(font_family="SF regular"),
-            tooltip="Kernel coefficient. 'scale'=1/(n_features*X.var()), 'auto'=1/n_features, or numeric value (0.0001-1.0)",
+            tooltip="Kernel coefficient. 'scale'=1/(n_features*X.var()), 'auto'=1/n_features, or non-negative float",
         )
         
         self.degree_field = ft.TextField(
