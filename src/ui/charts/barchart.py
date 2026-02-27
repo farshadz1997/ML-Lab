@@ -95,10 +95,8 @@ class BarChart(BaseChart):
             label_style=ft.TextStyle(font_family="SF regular"),
             text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("None", text_style=ft.TextStyle(font_family="SF regular")),
-                *[ft.DropdownOption(
-                    col, text_style=ft.TextStyle(font_family="SF regular")
-                ) for col in categorical_cols]
+                ft.DropdownOption("None"),
+                *[ft.DropdownOption(col) for col in categorical_cols]
             ],
             on_change=self._xaxis_on_change
         )
@@ -109,10 +107,8 @@ class BarChart(BaseChart):
             label_style=ft.TextStyle(font_family="SF regular"),
             text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("None", text_style=ft.TextStyle(font_family="SF regular")),
-                *[ft.DropdownOption(
-                    col, text_style=ft.TextStyle(font_family="SF regular")
-                ) for col in numeric_cols]
+                ft.DropdownOption("None"),
+                *[ft.DropdownOption(col) for col in numeric_cols]
             ],
             on_change=self._yaxis_on_change
         )
@@ -122,7 +118,8 @@ class BarChart(BaseChart):
             value="sum",
             expand=True,
             label_style=ft.TextStyle(font_family="SF regular"),
-            options=[ft.DropdownOption(agg, text_style=ft.TextStyle(font_family="SF regular")) for agg in ["sum", "count", "mean", "median", "min", "max"]]
+            text_style=ft.TextStyle(font_family="SF regular"),
+            options=[ft.DropdownOption(agg) for agg in ["sum", "count", "mean", "median", "min", "max"]]
         )
         
         return ft.Card(

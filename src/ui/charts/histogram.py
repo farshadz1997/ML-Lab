@@ -107,9 +107,7 @@ class HistogramChart(BaseChart):
             text_style=ft.TextStyle(font_family="SF regular"),
             options=[
                 ft.DropdownOption("None"),
-                *[ft.DropdownOption(
-                    col, text_style=ft.TextStyle(font_family="SF regular")
-                ) for col in numeric_cols]
+                *[ft.DropdownOption(col) for col in numeric_cols]
             ],
         )
         

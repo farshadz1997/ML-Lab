@@ -222,9 +222,10 @@ class KMeansModel:
             value="k-means++",
             expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("k-means++", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("random", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("k-means++"),
+                ft.DropdownOption("random"),
             ],
             tooltip="Initialization strategy. k-means++=smart initialization (better), random=random centroids",
         )
@@ -234,9 +235,10 @@ class KMeansModel:
             value="lloyd",
             expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.dropdown.Option("lloyd", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.dropdown.Option("elkan", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.dropdown.Option("lloyd"),
+                ft.dropdown.Option("elkan"),
             ],
             tooltip='K-means algorithm to use. The classical EM-style algorithm is "lloyd". The "elkan" variation can be more efficient on some datasets with well-defined clusters, by using the triangle inequality. However it’s more memory intensive due to the allocation of an extra array of shape (n_samples, n_clusters).',
         )

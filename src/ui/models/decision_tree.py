@@ -309,10 +309,11 @@ class DecisionTreeModel:
             value="gini",
             expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("gini", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("entropy", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("log_loss", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("gini"),
+                ft.DropdownOption("entropy"),
+                ft.DropdownOption("log_loss"),
             ],
             tooltip="Function to measure split quality. gini=default, entropy=information gain based",
         )
@@ -322,9 +323,10 @@ class DecisionTreeModel:
             value="best",
             expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("best", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("random", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("best"),
+                ft.DropdownOption("random"),
             ],
             tooltip="'best' searches all splits, 'random' uses random thresholds. best=slower but more accurate",
         )
@@ -334,10 +336,11 @@ class DecisionTreeModel:
             value="None",
             expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("None", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("sqrt", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("log2", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("None"),
+                ft.DropdownOption("sqrt"),
+                ft.DropdownOption("log2"),
             ],
             tooltip="Number of features to consider for splits. sqrt/log2 reduce overfitting on high-dimensional data",
         )

@@ -103,9 +103,7 @@ class ScatterChart(BaseChart):
             text_style=ft.TextStyle(font_family="SF regular"),
             options=[
                 ft.DropdownOption("None"),
-                *[ft.DropdownOption(
-                    col, text_style=ft.TextStyle(font_family="SF regular")
-                ) for col in self.df.columns]
+                *[ft.DropdownOption(col) for col in self.df.columns]
             ],
             on_change=self._xaxis_on_change
         )
@@ -116,9 +114,7 @@ class ScatterChart(BaseChart):
             text_style=ft.TextStyle(font_family="SF regular"),
             options=[
                 ft.DropdownOption("None"),
-                *[ft.DropdownOption(
-                    col, text_style=ft.TextStyle(font_family="SF regular")
-                ) for col in self.df.columns]
+                *[ft.DropdownOption(col) for col in self.df.columns]
             ],
             on_change=self._yaxis_on_change
         )
@@ -130,9 +126,7 @@ class ScatterChart(BaseChart):
             text_style=ft.TextStyle(font_family="SF regular"),
             options=[
                 ft.DropdownOption("None"),
-                *[ft.DropdownOption(
-                    col, text_style=ft.TextStyle(font_family="SF regular")
-                ) for col in self.df.columns]
+                *[ft.DropdownOption(col) for col in self.df.columns]
             ],
         )
         self.symbol_dropdown = ft.Dropdown(
@@ -143,9 +137,7 @@ class ScatterChart(BaseChart):
             text_style=ft.TextStyle(font_family="SF regular"),
             options=[
                 ft.DropdownOption("None"),
-                *[ft.DropdownOption(
-                    col, text_style=ft.TextStyle(font_family="SF regular")
-                ) for col in self.df.columns]
+                *[ft.DropdownOption(col) for col in self.df.columns]
             ],
         )
         self.size_dropdown = ft.Dropdown(
@@ -156,9 +148,7 @@ class ScatterChart(BaseChart):
             text_style=ft.TextStyle(font_family="SF regular"),
             options=[
                 ft.DropdownOption("None"),
-                *[ft.DropdownOption(
-                    col, text_style=ft.TextStyle(font_family="SF regular")
-                ) for col in self.df.columns]
+                *[ft.DropdownOption(col) for col in self.df.columns]
             ],
         )
         return ft.Card(

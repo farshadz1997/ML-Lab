@@ -225,9 +225,10 @@ class MiniBatchKMeansModel:
             value="k-means++",
             expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("k-means++", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("random", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("k-means++"),
+                ft.DropdownOption("random"),
             ],
             tooltip="Initialization strategy. k-means++=smart initialization (better), random=random centroids",
         )

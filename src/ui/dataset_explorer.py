@@ -191,9 +191,10 @@ class DatasetExplorer:
             label="Replace type",
             expand=True,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.dropdown.Option(key="str", text="In string", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.dropdown.Option(key="complete", text="Complete", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.dropdown.Option(key="str", text="In string"),
+                ft.dropdown.Option(key="complete", text="Complete"),
             ],
         )
         old_field = ft.TextField(
@@ -317,15 +318,16 @@ class DatasetExplorer:
             expand=True,
             value="string",
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.dropdown.Option(key="object", text="Object", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.dropdown.Option(key="string", text="String", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.dropdown.Option(key="Int64", text="Integer", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.dropdown.Option(key="Float64", text="Float", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.dropdown.Option(key="complex128", text="Complex numbers", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.dropdown.Option(key="category", text="Category", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.dropdown.Option(key="datetime64[ns]", text="Timestamp", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.dropdown.Option(key="timedelta64[ns]", text="Time difference", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.dropdown.Option(key="object", text="Object"),
+                ft.dropdown.Option(key="string", text="String"),
+                ft.dropdown.Option(key="Int64", text="Integer"),
+                ft.dropdown.Option(key="Float64", text="Float"),
+                ft.dropdown.Option(key="complex128", text="Complex numbers"),
+                ft.dropdown.Option(key="category", text="Category"),
+                ft.dropdown.Option(key="datetime64[ns]", text="Timestamp"),
+                ft.dropdown.Option(key="timedelta64[ns]", text="Time difference"),
             ]
         )
         dialog = ft.AlertDialog(

@@ -302,11 +302,12 @@ class SVMModel:
             value="rbf",
             expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("linear", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("rbf", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("poly", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("sigmoid", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("linear"),
+                ft.DropdownOption("rbf"),
+                ft.DropdownOption("poly"),
+                ft.DropdownOption("sigmoid"),
             ],
             tooltip="Kernel type. linear=fast/interpretable, rbf=flexible, poly=custom power, sigmoid=neural-like",
             on_change=self._kernel_on_change
@@ -338,9 +339,10 @@ class SVMModel:
             expand=1,
             visible=True if self._get_task_type() == "Classification" else False,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("ovr", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("ovo", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("ovr"),
+                ft.DropdownOption("ovo"),
             ],
             tooltip="Whether to return a one-vs-rest ('ovr') decision function of shape (n_samples, n_classes) as all other classifiers, or the original one-vs-one ('ovo') decision function of libsvm which has shape (n_samples, n_classes * (n_classes - 1) / 2). However, note that internally, one-vs-one ('ovo') is always used as a multi-class strategy to train models; an ovr matrix is only constructed from the ovo matrix. The parameter is ignored for binary classification."
         )

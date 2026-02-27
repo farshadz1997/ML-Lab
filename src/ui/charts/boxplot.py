@@ -101,9 +101,7 @@ class BoxPlotChart(BaseChart):
             text_style=ft.TextStyle(font_family="SF regular"),
             options=[
                 ft.DropdownOption("None"),
-                *[ft.DropdownOption(
-                    col, text_style=ft.TextStyle(font_family="SF regular")
-                ) for col in categorical_cols]
+                *[ft.DropdownOption(col) for col in categorical_cols]
             ],
             on_change=self._xaxis_on_change
         )
@@ -115,9 +113,7 @@ class BoxPlotChart(BaseChart):
             text_style=ft.TextStyle(font_family="SF regular"),
             options=[
                 ft.DropdownOption("None"),
-                *[ft.DropdownOption(
-                    col, text_style=ft.TextStyle(font_family="SF regular")
-                ) for col in numeric_cols]
+                *[ft.DropdownOption(col) for col in numeric_cols]
             ],
             on_change=self._yaxis_on_change
         )

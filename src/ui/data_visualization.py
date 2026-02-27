@@ -159,13 +159,14 @@ class DataVisualization:
             expand=True,
             label="Visualization Type",
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("Histogram", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("Scatter", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("Box", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("Heatmap", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("Pie", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("Bar", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("Histogram"),
+                ft.DropdownOption("Scatter"),
+                ft.DropdownOption("Box"),
+                ft.DropdownOption("Heatmap"),
+                ft.DropdownOption("Pie"),
+                ft.DropdownOption("Bar"),
             ],
             on_change=self._on_viz_type_change,
         )
@@ -221,7 +222,7 @@ class DataVisualization:
             text_style=ft.TextStyle(font_family="SF regular"),
             options=[
                 ft.DropdownOption(
-                    name, text_style=ft.TextStyle(font_family="SF regular")
+                    name
                 ) for name in ["deep", "muted", "pastel", "bright", "dark", "colorblind", "husl", "rocket", "mako", "flare", "crest"]
             ],
         )
@@ -234,7 +235,7 @@ class DataVisualization:
             text_style=ft.TextStyle(font_family="SF regular"),
             options=[
                 ft.DropdownOption(
-                    ctx, text_style=ft.TextStyle(font_family="SF regular")
+                    ctx
                 ) for ctx in ["paper", "notebook", "talk", "poster"]
             ],
         )
@@ -247,7 +248,7 @@ class DataVisualization:
             text_style=ft.TextStyle(font_family="SF regular"),
             options=[
                 ft.DropdownOption(
-                    style, text_style=ft.TextStyle(font_family="SF regular")
+                    style
                 ) for style in ["darkgrid", "whitegrid", "dark", "white", "ticks"]
             ],
         )
@@ -316,10 +317,10 @@ class DataVisualization:
                                         ft.Row([ft.Text("Visualization Settings", font_family="SF thin", size=24, expand=True, text_align="center")]),
                                         ft.Divider(),
                                         self.viz_type_dropdown,
-                                        ft.Text("Chart global options", font_family="SF thin", size=16),
+                                        ft.Text("Chart global options", font_family="SF regular", weight="bold", size=16),
                                         ft.Row(
                                             controls=[
-                                                ft.Text("Customization", font_family="SF thin", size=12, expand=1),
+                                                ft.Text("Customization", font_family="SF regular", size=14, expand=1),
                                                 self.palette_dropdown,
                                                 self.context_dropdown,
                                                 self.style_dropdown
@@ -327,14 +328,14 @@ class DataVisualization:
                                         ),
                                         ft.Row(
                                             controls=[
-                                                ft.Text("Figure size", font_family="SF thin", size=12, expand=2),
+                                                ft.Text("Figure size", font_family="SF regular", size=14, expand=2),
                                                 self.chart_width,
                                                 self.chart_height,
                                             ]
                                         ),
                                         ft.Row(
                                             controls=[
-                                                ft.Text("Font size", font_family="SF thin", size=12, expand=2),
+                                                ft.Text("Font size", font_family="SF regular", size=14, expand=2),
                                                 self.title_size,
                                                 self.axes_size,
                                             ]

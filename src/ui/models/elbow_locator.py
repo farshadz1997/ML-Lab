@@ -224,9 +224,10 @@ class ElbowLocatorModel:
             value="concave",
             expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("concave", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("convex", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("concave"),
+                ft.DropdownOption("convex"),
             ],
             tooltip="Curve type for elbow detection. 'concave'=typical elbow shape (default), 'convex'=reversed",
         )
@@ -236,9 +237,10 @@ class ElbowLocatorModel:
             value="decreasing",
             expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("decreasing", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("increasing", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("decreasing"),
+                ft.DropdownOption("increasing"),
             ],
             tooltip="Direction of change. 'decreasing'=inertia decreases with clusters (default), 'increasing'=opposite",
         )

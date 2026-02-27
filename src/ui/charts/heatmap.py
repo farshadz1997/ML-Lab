@@ -103,11 +103,12 @@ class HeatmapChart(BaseChart):
             label="Column",
             value="All",
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             expand=True,
             options=[
-                ft.DropdownOption("All", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("All"),
                 *[
-                    ft.DropdownOption(col, text_style=ft.TextStyle(font_family="SF regular"))
+                    ft.DropdownOption(col)
                     for col in self.df.select_dtypes(include=["number"]).columns
                 ]
             ]

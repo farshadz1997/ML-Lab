@@ -83,9 +83,7 @@ class PieChart(BaseChart):
             label_style=ft.TextStyle(font_family="SF regular"),
             text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption(
-                    col, text_style=ft.TextStyle(font_family="SF regular")
-                ) for col in all_cols
+                ft.dropdown.Option(col) for col in all_cols
             ],
         )
         

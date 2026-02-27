@@ -239,11 +239,12 @@ class GaussianMixtureModel:
             value="full",
             expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("full", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("tied", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("diag", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("spherical", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("full"),
+                ft.DropdownOption("tied"),
+                ft.DropdownOption("diag"),
+                ft.DropdownOption("spherical"),
             ],
             tooltip="""String describing the type of covariance parameters to use. Must be one of:
 'full': each component has its own general covariance matrix.
@@ -257,11 +258,12 @@ class GaussianMixtureModel:
             value="kmeans",
             expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("kmeans", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("k-means++", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("random", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("random_from_data", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("kmeans"),
+                ft.DropdownOption("k-means++"),
+                ft.DropdownOption("random"),
+                ft.DropdownOption("random_from_data"),
             ],
             tooltip="""The method used to initialize the weights, the means and the precisions. String must be one of:
 kmeans: responsibilities are initialized using kmeans.

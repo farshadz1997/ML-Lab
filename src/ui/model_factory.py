@@ -63,30 +63,30 @@ MODEL_REGISTRY: Dict[str, Type] = {
 }
 
 CLASSIFICATION_MODELS_OPTIONS = [
-    ft.DropdownOption("logistic_regression", text="Logistic regression", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("random_forest", text="Random forest", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("gradient_boosting", text="Gradient boosting", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("svm", text="SVM", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("knn", text="KNN", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("decision_tree", text="Decision Tree", text_style=ft.TextStyle(font_family="SF regular")),
+    ft.DropdownOption("logistic_regression", text="Logistic regression"),
+    ft.DropdownOption("random_forest", text="Random forest"),
+    ft.DropdownOption("gradient_boosting", text="Gradient boosting"),
+    ft.DropdownOption("svm", text="SVM"),
+    ft.DropdownOption("knn", text="KNN"),
+    ft.DropdownOption("decision_tree", text="Decision Tree"),
 ]
 REGRESSION_MODELS_OPTIONS = [
-    ft.DropdownOption("linear_regression", text="Linear regression", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("random_forest", text="Random forest", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("gradient_boosting", text="Gradient boosting", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("svm", text="SVM", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("decision_tree_regressor", text="Decision Tree", text_style=ft.TextStyle(font_family="SF regular")),
+    ft.DropdownOption("linear_regression", text="Linear regression"),
+    ft.DropdownOption("random_forest", text="Random forest"),
+    ft.DropdownOption("gradient_boosting", text="Gradient boosting"),
+    ft.DropdownOption("svm", text="SVM"),
+    ft.DropdownOption("decision_tree_regressor", text="Decision Tree"),
 ]
 CLUSTERING_MODELS_OPTIONS = [
-    ft.DropdownOption("kmeans", text="K-Means", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("minibatch_kmeans", text="MiniBatch K-Means", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("elbow_locator", text="Elbow Locator", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("hierarchical", text="Hierarchical Clustering", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("dbscan", text="DBSCAN", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("hdbscan", text="HDBSCAN", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("gaussian_mixture", text="Gaussian Mixture", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("mean_shift", text="Mean Shift", text_style=ft.TextStyle(font_family="SF regular")),
-    ft.DropdownOption("affinity_propagation", text="Affinity Propagation", text_style=ft.TextStyle(font_family="SF regular")),
+    ft.DropdownOption("kmeans", text="K-Means"),
+    ft.DropdownOption("minibatch_kmeans", text="MiniBatch K-Means"),
+    ft.DropdownOption("elbow_locator", text="Elbow Locator"),
+    ft.DropdownOption("hierarchical", text="Hierarchical Clustering"),
+    ft.DropdownOption("dbscan", text="DBSCAN"),
+    ft.DropdownOption("hdbscan", text="HDBSCAN"),
+    ft.DropdownOption("gaussian_mixture", text="Gaussian Mixture"),
+    ft.DropdownOption("mean_shift", text="Mean Shift"),
+    ft.DropdownOption("affinity_propagation", text="Affinity Propagation"),
 ]
 
 @dataclass
@@ -99,8 +99,8 @@ class ModelFactory:
         learning_type = e.control.value
         if learning_type == "Supervised":
             self.task_type_dropdown.options = [
-                ft.DropdownOption("Classification", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("Regression", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("Classification"),
+                ft.DropdownOption("Regression"),
             ]
             self.task_type_dropdown.value = "Classification"
             self.task_type_dropdown.disabled = False
@@ -111,7 +111,7 @@ class ModelFactory:
             self.cross_val_shuffle_switch.disabled = False
             self._model_on_change("logistic_regression")
         else:
-            self.task_type_dropdown.options = [ft.DropdownOption("Clustering", text_style=ft.TextStyle(font_family="SF regular"))]
+            self.task_type_dropdown.options = [ft.DropdownOption("Clustering")]
             self.task_type_dropdown.value = "Clustering"
             self.task_type_dropdown.disabled = True
             self.model_dropdown.options = CLUSTERING_MODELS_OPTIONS
@@ -222,10 +222,11 @@ class ModelFactory:
             value="Supervised",
             label="Learning type",
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             expand=1,
             options=[
-                ft.DropdownOption("Supervised", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("Unsupervised", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("Supervised"),
+                ft.DropdownOption("Unsupervised"),
             ],
             on_change=self._learning_type_on_change,
         )
@@ -234,10 +235,11 @@ class ModelFactory:
             value="Classification",
             label="Task Type",
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             expand=1,
             options=[
-                ft.DropdownOption("Classification", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("Regression", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("Classification"),
+                ft.DropdownOption("Regression"),
             ],
             on_change=self._on_task_change,
         )
@@ -247,6 +249,7 @@ class ModelFactory:
             label="Model Type",
             expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=CLASSIFICATION_MODELS_OPTIONS,
             on_change=lambda e: self._model_on_change(e.control.value)
         )
@@ -254,9 +257,10 @@ class ModelFactory:
         self.target_column_dropdown = ft.Dropdown(
             label="Target Column",
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             expand=1,
             options=[
-                ft.DropdownOption(key=col, text=f"{col} ({self.parent.dataset.number_of_unique_values(col)})", text_style=ft.TextStyle(font_family="SF regular"))
+                ft.DropdownOption(key=col, text=f"{col} ({self.parent.dataset.number_of_unique_values(col)})")
                 for col in all_cols
             ],
             tooltip="Number of unique values shown in parentheses",
@@ -278,9 +282,9 @@ class ModelFactory:
             label_style=ft.TextStyle(font_family="SF regular"),
             expand=1,
             options=[
-                ft.DropdownOption("standard_scaler", text="Standard Scaler", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("minmax_scaler", text="Min-Max Scaler", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("none", text="No Scaling", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("standard_scaler", text="Standard Scaler"),
+                ft.DropdownOption("minmax_scaler", text="Min-Max Scaler"),
+                ft.DropdownOption("none", text="No Scaling"),
             ]
         )
         
