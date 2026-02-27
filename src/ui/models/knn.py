@@ -156,17 +156,16 @@ class KNNModel:
         except (ValueError, TypeError):
             params['algorithm'] = 'auto'
             is_valid = False
-        
-        # Validate metric
+            
+        # Validate leaf size
         try:
-            metric = self.metric_dropdown.value
-            valid_metrics = ['euclidean', 'manhattan', 'chebyshev', 'minkowski']
-            if metric not in valid_metrics:
-                metric = 'euclidean'
+            leaf_size = int(self.leaf_size_field.value)
+            if leaf_size < 1:
+                leaf_size = 30
                 is_valid = False
-            params['metric'] = metric
+            params['leaf_size'] = leaf_size
         except (ValueError, TypeError):
-            params['metric'] = 'euclidean'
+            params['leaf_size'] = 30
             is_valid = False
         
         return params, is_valid
@@ -199,7 +198,8 @@ class KNNModel:
                 n_neighbors=hyperparams['n_neighbors'],
                 weights=hyperparams['weights'],
                 algorithm=hyperparams['algorithm'],
-                metric=hyperparams['metric'],
+                metric=self.metric_dropdown.value,
+                leaf_size=hyperparams['leaf_size']
             )
             
             model.fit(X_train, y_train.to_numpy())
@@ -237,6 +237,15 @@ class KNNModel:
             self.train_btn.disabled = False
             self.parent.page.update()
     
+    def _algorithm_change(self, e: ft.ControlEvent) -> None:
+        """Show/hide leaf size field based on selected algorithm."""
+        selected_algorithm = self.algorithm_dropdown.value
+        if selected_algorithm in ['ball_tree', 'kd_tree']:
+            self.leaf_size_field.visible = True
+        else:
+            self.leaf_size_field.visible = False
+        self.parent.page.update()
+    
     def build_model_control(self) -> ft.Card:
         """Build Flet UI card for KNN hyperparameter configuration."""
         
@@ -255,9 +264,10 @@ class KNNModel:
             value="uniform",
             expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("uniform", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("distance", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("uniform"),
+                ft.DropdownOption("distance"),
             ],
             tooltip="Weight function. uniform=all neighbors equally, distance=closer neighbors weighted higher",
         )
@@ -267,13 +277,26 @@ class KNNModel:
             value="auto",
             expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("auto", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("ball_tree", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("kd_tree", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("brute", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("auto"),
+                ft.DropdownOption("ball_tree"),
+                ft.DropdownOption("kd_tree"),
+                ft.DropdownOption("brute"),
             ],
             tooltip="Algorithm to compute neighbors. auto=auto-select, ball_tree=scalable, kd_tree=fast, brute=accurate",
+            on_change=self._algorithm_change
+        )
+        
+        self.leaf_size_field = ft.TextField(
+            label="Leaf Size",
+            value="30",
+            expand=1,
+            visible=False,  # Hidden by default since it's only relevant for certain algorithms
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.NumbersOnlyInputFilter(),
+            tooltip="Leaf size passed to BallTree or KDTree. This can affect the speed of the construction and query, as well as the memory required to store the tree. The optimal value depends on the nature of the problem.",
         )
         
         self.metric_dropdown = ft.Dropdown(
@@ -281,10 +304,17 @@ class KNNModel:
             value="euclidean",
             expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
             options=[
-                ft.DropdownOption("euclidean", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("manhattan", text_style=ft.TextStyle(font_family="SF regular")),
-                ft.DropdownOption("minkowski", text_style=ft.TextStyle(font_family="SF regular")),
+                ft.DropdownOption("euclidean"),
+                ft.DropdownOption("manhattan"),
+                ft.DropdownOption("minkowski"),
+                ft.DropdownOption("cityblock"),
+                ft.DropdownOption("cosine"),
+                ft.DropdownOption("haversine"),
+                ft.DropdownOption("l1"),
+                ft.DropdownOption("l2"),
+                ft.DropdownOption("nan_euclidean"),
             ],
             tooltip="Distance metric. euclidean=straight-line, manhattan=grid-based, minkowski=general",
         )
@@ -326,8 +356,8 @@ class KNNModel:
                                weight="bold",
                                size=14),
                         self.n_neighbors_field,
-                        ft.Row([self.weights_dropdown, self.algorithm_dropdown]),
-                        self.metric_dropdown,
+                        ft.Row([self.weights_dropdown, self.metric_dropdown]),
+                        ft.Row([self.algorithm_dropdown, self.leaf_size_field]),
                         ft.Row([self.train_btn])
                     ]
                 )
