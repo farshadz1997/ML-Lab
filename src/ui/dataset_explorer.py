@@ -30,7 +30,6 @@ class DatasetExplorer:
                 self.dataset_path_field.value = e.files[0].path
                 self.display_tables_options_row.visible = True
                 self.close_dataset_btn.visible = True
-                self.open_dataset_button.height = 65
                 self.page.navigation_bar.destinations[1].disabled = False
                 self.page.navigation_bar.destinations[2].disabled = False
                 self.page.update()
@@ -914,7 +913,6 @@ class DatasetExplorer:
         self.display_tables_options_row.visible = False
         self.datatable_card.visible = False
         self.datatable_container.content = None
-        self.open_dataset_button.height = 50
         self.close_dataset_btn.visible = False
         self.page.navigation_bar.destinations[1].disabled = True
         self.page.navigation_bar.destinations[2].disabled = True
