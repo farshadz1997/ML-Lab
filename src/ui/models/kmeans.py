@@ -12,12 +12,11 @@ Configurable hyperparameters:
 """
 
 from __future__ import annotations
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple
 import flet as ft
 from dataclasses import dataclass
-from pandas import DataFrame
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, FunctionTransformer
+
 from utils.model_utils import (
     calculate_clustering_metrics,
     format_results_markdown,
@@ -26,88 +25,16 @@ from utils.model_utils import (
     disable_navigation_bar,
     enable_navigation_bar,
 )
-from core.data_preparation import prepare_data_for_training_no_split
-
-if TYPE_CHECKING:
-    from ..model_factory import ModelFactory
+from .base_model import BaseModel
 
 
 @dataclass
-class KMeansModel:
+class KMeansModel(BaseModel):
     """K-Means clustering model."""
     
-    parent: ModelFactory
-    df: DataFrame
-    
-    def __post_init__(self):
-        """Ensure dataset is copied to avoid mutations."""
-        self.df = self.df.copy()
-    
-    def _prepare_data(self) -> Optional[Tuple]:
-        """
-        Prepare data for clustering with categorical encoding support (no train-test split).
-        
-        Uses prepare_data_for_training_no_split() which:
-        - Detects and encodes categorical columns
-        - Validates cardinality
-        - Fits encoders on full dataset (clustering is unsupervised)
-        - Returns encoded features and metadata
-        
-        Returns:
-            Tuple of (X_encoded, categorical_cols, numeric_cols, encoders, warnings) or None if error
-        """
-        try:
-            # Call spec-compliant data preparation for clustering (no split)
-            (
-                X_encoded,
-                _,  # y is None for clustering
-                categorical_cols,
-                numeric_cols,
-                encoders,
-                cardinality_warnings,
-            ) = prepare_data_for_training_no_split(
-                self.df.copy(),
-                target_col=None,  # No target for clustering
-                raise_on_unseen=True,
-            )
-            
-            # Store encoding metadata
-            self.categorical_cols = categorical_cols
-            self.numeric_cols = numeric_cols
-            self.encoders = encoders
-            self.cardinality_warnings = cardinality_warnings
-            
-            # Warn about high-cardinality columns
-            if cardinality_warnings:
-                warning_msgs = [
-                    f"{col}: {w.message}"
-                    for col, w in cardinality_warnings.items()
-                ]
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text(
-                        "Cardinality warnings: " + "; ".join(warning_msgs),
-                        font_family="SF regular",
-                    ),
-                    bgcolor="#FF9800"
-                ))
-            
-            # Apply scaling if requested
-            if self.parent.scaler_dropdown.value == "standard_scaler":
-                scaler = StandardScaler()
-                X_scaled = scaler.fit_transform(X_encoded)
-            elif self.parent.scaler_dropdown.value == "minmax_scaler":
-                scaler = MinMaxScaler(feature_range=(0, 1))
-                X_scaled = scaler.fit_transform(X_encoded)
-            else:
-                X_scaled = X_encoded.values
-            
-            return X_scaled, X_encoded.columns.tolist()
-        
-        except Exception as e:
-            self.parent.page.open(ft.SnackBar(
-                ft.Text(f"Data preparation error: {str(e)}", font_family="SF regular")
-            ))
-            return None
+    def _prepare_data(self):
+        """Prepare data for clustering."""
+        return self._prepare_data_clustering()
     
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train K-Means model and display evaluation results."""
@@ -139,9 +66,7 @@ class KMeansModel:
             
             is_valid, error_msg = validate_hyperparameters(hyperparams, 'kmeans', validation_rules)
             if not is_valid:
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text(f"Hyperparameter error: {error_msg}", font_family="SF regular")
-                ))
+                self._show_snackbar(f"Hyperparameter error: {error_msg}", bgcolor=ft.Colors.RED_500)
                 return
             
             # Train K-Means
@@ -171,9 +96,7 @@ class KMeansModel:
         
         except Exception as e:
             enable_navigation_bar(self.parent.page)
-            self.parent.page.open(ft.SnackBar(
-                ft.Text(f"Training failed: {str(e)}", font_family="SF regular")
-            ))
+            self._show_snackbar(f"Training failed: {str(e)}", bgcolor=ft.Colors.RED_500)
         
         finally:
             self.parent.enable_model_selection()
@@ -256,17 +179,7 @@ class KMeansModel:
             tooltip="Number of times the k-means algorithm is run with different centroid seeds. The final results is the best output of n_init consecutive runs in terms of inertia. When n_init='auto', the number of runs depends on the value of init: 10 if using init='random' or init is a callable; 1 if using init='k-means++' or init is an array-like.",
         )
         
-        self.train_btn = ft.FilledButton(
-            text="Train and evaluate model",
-            icon=ft.Icons.PSYCHOLOGY,
-            on_click=self._train_and_evaluate_model,
-            expand=1,
-            style=ft.ButtonStyle(
-                shape=ft.RoundedRectangleBorder(radius=8),
-                elevation=5,
-                text_style=ft.TextStyle(font_family="SF regular"),
-            )
-        )
+        self._build_train_button()
         
         return ft.Card(
             expand=2,

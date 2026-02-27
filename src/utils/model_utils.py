@@ -11,7 +11,7 @@ This module provides centralized functions for:
 Purpose: Eliminate duplication across model implementations (DRY principle, AR-008)
 """
 
-from typing import Dict, Any, Optional, Tuple, List
+from typing import Dict, Any, Optional, Tuple, List, Literal
 from dataclasses import dataclass, asdict
 import numpy as np
 import pandas as pd
@@ -374,7 +374,7 @@ def calculate_clustering_metrics(
 
 def format_results_markdown(
     metrics: Dict[str, Any],
-    task_type: str = "classification",
+    task_type: Literal["classification", "regression", "clustering"] = "classification",
 ) -> str:
     """
     Format evaluation metrics as markdown for display in results dialog.

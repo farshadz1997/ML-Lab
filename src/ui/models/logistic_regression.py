@@ -9,15 +9,12 @@ Multinomial/binary logistic regression classifier with configurable hyperparamet
 """
 
 from __future__ import annotations
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple
 import flet as ft
 from dataclasses import dataclass
-from pandas import DataFrame
 from numpy import inf as infinite
 from sklearn.model_selection import train_test_split, KFold, cross_val_score
 from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder, OneHotEncoder, FunctionTransformer
-from sklearn.compose import ColumnTransformer
 
 from utils.model_utils import (
     check_data_quality,
@@ -27,87 +24,16 @@ from utils.model_utils import (
     disable_navigation_bar,
     enable_navigation_bar,
 )
-from core.data_preparation import prepare_data_for_training, prepare_data_for_training_no_split
-
-if TYPE_CHECKING:
-    from ..model_factory import ModelFactory
+from .base_model import BaseModel
 
 
 @dataclass
-class LogisticRegressionModel:
+class LogisticRegressionModel(BaseModel):
     """Logistic Regression classifier with configurable hyperparameters."""
     
-    parent: ModelFactory
-    df: DataFrame
-    
-    def __post_init__(self):
-        """Ensure dataset is copied to avoid mutations."""
-        self.df = self.df.copy()
-    
-    def _prepare_data(self) -> Optional[Tuple]:
-        """
-        Prepare data for training using spec-compliant categorical encoding.
-        
-        Uses prepare_data_for_training() which:
-        - Performs train-test split BEFORE encoding (prevents data leakage)
-        - Fits encoders ONLY on training data
-        - Applies encoders to test data
-        - Returns encoding metadata and cardinality warnings
-        
-        Returns:
-            Tuple of (X_train, X_test, y_train, y_test, categorical_cols, numeric_cols,
-                      encoders, warnings) or None if error
-        """
-        try:
-            target_name = self.parent.target_column_dropdown.value
-            test_size = self.parent.test_size_field.value / 100
-            
-            # Call spec-compliant data preparation
-            (
-                X_train,
-                X_test,
-                y_train,
-                y_test,
-                categorical_cols,
-                numeric_cols,
-                encoders,
-                cardinality_warnings,
-            ) = prepare_data_for_training(
-                self.df.copy(),
-                target_col=target_name,
-                test_size=test_size,
-                random_state=42,
-                raise_on_unseen=True,
-            )
-            
-            # Store encoding metadata for later use
-            self.categorical_cols = categorical_cols
-            self.numeric_cols = numeric_cols
-            self.encoders = encoders
-            self.cardinality_warnings = cardinality_warnings
-            
-            # Warn user about high-cardinality columns if any
-            if cardinality_warnings:
-                warning_msgs = [
-                    f"{col}: {w.message}"
-                    for col, w in cardinality_warnings.items()
-                ]
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text(
-                        "Cardinality warnings: " + "; ".join(warning_msgs),
-                        font_family="SF regular",
-                    ),
-                    bgcolor="#FF9800"
-                ))
-            
-            # Return tuple for backward compatibility with train method
-            return X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols)
-        
-        except Exception as e:
-            self.parent.page.open(ft.SnackBar(
-                ft.Text(f"Data preparation error: {str(e)}", font_family="SF regular")
-            ))
-            return None
+    def _prepare_data(self):
+        """Prepare data for training."""
+        return self._prepare_data_supervised()
     
     def _validate_hyperparameters(self) -> tuple[dict, bool]:
         """
@@ -221,9 +147,7 @@ class LogisticRegressionModel:
             # Check data quality first
             is_valid, error_msg = check_data_quality(self.df, self.parent.target_column_dropdown.value)
             if not is_valid:
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text(f"Data error: {error_msg}", font_family="SF regular")
-                ))
+                self._show_snackbar(f"Data error: {error_msg}", bgcolor=ft.Colors.RED_500)
                 enable_navigation_bar(self.parent.page)
                 return
             
@@ -240,13 +164,7 @@ class LogisticRegressionModel:
             
             # If invalid params were detected, inform user
             if not params_valid:
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text(
-                        "Some hyperparameters were invalid. Using defaults.",
-                        font_family="SF regular",
-                    ),
-                    bgcolor="#FF9800"
-                ))
+                self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)
             
             # Create and train model with validated parameters
             model = LogisticRegression(
@@ -288,9 +206,7 @@ class LogisticRegressionModel:
         
         except Exception as e:
             enable_navigation_bar(self.parent.page)
-            self.parent.page.open(ft.SnackBar(
-                ft.Text(f"Training failed: {str(e)}", font_family="SF regular")
-            ))
+            self._show_snackbar(f"Training failed: {str(e)}", bgcolor=ft.Colors.RED_500)
         
         finally:
             self.parent.enable_model_selection()
@@ -319,14 +235,7 @@ class LogisticRegressionModel:
             ]
             if self.penalty_dropdown.value not in ["l2", "None"]:
                 self.penalty_dropdown.value = "l2"
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text(
-                        f"'{solver}' solver only supports 'l2' or None penalty. Defaulting to 'l2'.",
-                        font_family="SF regular",
-                    ),
-                    bgcolor="#FF9800",
-                    action="Ok",
-                ))
+                self._show_snackbar(f"'{solver}' solver only supports 'l2' or None penalty. Defaulting to 'l2'.", bgcolor=ft.Colors.AMBER_ACCENT_200)
         elif solver == 'liblinear':
             # 'l1' and 'l2' allowed, but not elasticnet
             self.penalty_dropdown.options = [
@@ -336,14 +245,7 @@ class LogisticRegressionModel:
             ]
             if self.penalty_dropdown.value == "elasticnet":
                 self.penalty_dropdown.value = "l2"
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text(
-                        "'liblinear' solver does not support 'elasticnet' penalty. Defaulting to 'l2'.",
-                        font_family="SF regular",
-                    ),
-                    bgcolor="#FF9800",
-                    action="Ok",
-                ))
+                self._show_snackbar("'liblinear' solver does not support 'elasticnet' penalty. Defaulting to 'l2'.", bgcolor=ft.Colors.AMBER_ACCENT_200)
         else:  # saga supports all penalties
             self.penalty_dropdown.options = [
                 ft.DropdownOption("l1"),
@@ -359,20 +261,6 @@ class LogisticRegressionModel:
         else:
             self.intercept_scaling_field.disabled = True
         self.parent.page.update()
-
-    def _reset_field_to_none(self, field: ft.TextField) -> None:
-        field.value = "None"
-        self.parent.page.update()
-        
-    def _field_on_click(self, e: ft.ControlEvent) -> None:
-        if e.control.value.strip() == "None":
-            e.control.value = ""
-            self.parent.page.update()
-            
-    def _field_on_blur(self, e: ft.ControlEvent) -> None:
-        if e.control.value.strip() == "":
-            e.control.value = "None"
-            self.parent.page.update()
 
     def _infinite_button_on_click(self, e: ft.ControlEvent) -> None:
         self.C_field.value = "Infinite"
@@ -505,17 +393,7 @@ None: no penalty is added;
             tooltip="Useful only when the solver liblinear is used and self.fit_intercept is set to True. In this case, x becomes [x, self.intercept_scaling], i.e. a “synthetic” feature with constant value equal to intercept_scaling is appended to the instance vector. The intercept becomes intercept_scaling * synthetic_feature_weight."
         )
         
-        self.train_btn = ft.FilledButton(
-            text="Train and evaluate model",
-            icon=ft.Icons.PSYCHOLOGY,
-            on_click=self._train_and_evaluate_model,
-            expand=1,
-            style=ft.ButtonStyle(
-                shape=ft.RoundedRectangleBorder(radius=8),
-                elevation=5,
-                text_style=ft.TextStyle(font_family="SF regular"),
-            )
-        )
+        self._build_train_button()
         
         return ft.Card(
             expand=2,

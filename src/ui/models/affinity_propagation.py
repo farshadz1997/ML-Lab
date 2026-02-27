@@ -12,13 +12,11 @@ Configurable hyperparameters:
 """
 
 from __future__ import annotations
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple
 import flet as ft
 import numpy as np
 from dataclasses import dataclass
-from pandas import DataFrame
 from sklearn.cluster import AffinityPropagation
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.metrics.pairwise import euclidean_distances
 
 from utils.model_utils import (
@@ -28,89 +26,16 @@ from utils.model_utils import (
     disable_navigation_bar,
     enable_navigation_bar,
 )
-from core.data_preparation import prepare_data_for_training_no_split
-
-if TYPE_CHECKING:
-    from ..model_factory import ModelFactory
+from .base_model import BaseModel
 
 
 @dataclass
-class AffinityPropagationModel:
+class AffinityPropagationModel(BaseModel):
     """Affinity Propagation clustering model."""
-    
-    parent: ModelFactory
-    df: DataFrame
-    
-    def __post_init__(self):
-        """Ensure dataset is copied to avoid mutations."""
-        self.df = self.df.copy()
-    
-    
-    def _prepare_data(self) -> Optional[Tuple]:
-        """
-        Prepare data for clustering with categorical encoding support (no train-test split).
-        
-        Uses prepare_data_for_training_no_split() which:
-        - Detects and encodes categorical columns
-        - Validates cardinality
-        - Fits encoders on full dataset (clustering is unsupervised)
-        - Returns encoded features and metadata
-        
-        Returns:
-            Tuple of (X_scaled, feature_cols) or None if error
-        """
-        try:
-            # Call spec-compliant data preparation for clustering (no split)
-            (
-                X_encoded,
-                _,  # y is None for clustering
-                categorical_cols,
-                numeric_cols,
-                encoders,
-                cardinality_warnings,
-            ) = prepare_data_for_training_no_split(
-                self.df.copy(),
-                target_col=None,  # No target for clustering
-                raise_on_unseen=True,
-            )
-            
-            # Store encoding metadata
-            self.categorical_cols = categorical_cols
-            self.numeric_cols = numeric_cols
-            self.encoders = encoders
-            self.cardinality_warnings = cardinality_warnings
-            
-            # Warn about high-cardinality columns
-            if cardinality_warnings:
-                warning_msgs = [
-                    f"{col}: {w.message}"
-                    for col, w in cardinality_warnings.items()
-                ]
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text(
-                        "Cardinality warnings: " + "; ".join(warning_msgs),
-                        font_family="SF regular",
-                    ),
-                    bgcolor="#FF9800"
-                ))
-            
-            # Apply scaling if requested
-            if self.parent.scaler_dropdown.value == "standard_scaler":
-                scaler = StandardScaler()
-                X_scaled = scaler.fit_transform(X_encoded)
-            elif self.parent.scaler_dropdown.value == "minmax_scaler":
-                scaler = MinMaxScaler(feature_range=(0, 1))
-                X_scaled = scaler.fit_transform(X_encoded)
-            else:
-                X_scaled = X_encoded.values
-            
-            return X_scaled, X_encoded.columns.tolist()
-        
-        except Exception as e:
-            self.parent.page.open(ft.SnackBar(
-                ft.Text(f"Data preparation error: {str(e)}", font_family="SF regular")
-            ))
-            return None
+
+    def _prepare_data(self):
+        """Prepare data for clustering."""
+        return self._prepare_data_clustering()
     
     def _validate_hyperparameters(self) -> tuple[dict, bool]:
         """
@@ -178,13 +103,7 @@ class AffinityPropagationModel:
             hyperparams, params_valid = self._validate_hyperparameters()
             
             if not params_valid:
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text(
-                        "Some hyperparameters were invalid. Using defaults.",
-                        font_family="SF regular",
-                    ),
-                    bgcolor="#FF9800"
-                ))
+                self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)
             
             # Create and train model
             model = AffinityPropagation(
@@ -220,9 +139,7 @@ class AffinityPropagationModel:
         
         except Exception as e:
             enable_navigation_bar(self.parent.page)
-            self.parent.page.open(ft.SnackBar(
-                ft.Text(f"Training failed: {str(e)}", font_family="SF regular")
-            ))
+            self._show_snackbar(f"Training failed: {str(e)}", bgcolor=ft.Colors.RED_500)
         
         finally:
             self.parent.enable_model_selection()
@@ -300,18 +217,8 @@ class AffinityPropagationModel:
             on_blur=self._preference_field_on_blur
         )
         
-        self.train_btn = ft.FilledButton(
-            text="Train and evaluate model",
-            icon=ft.Icons.PSYCHOLOGY,
-            on_click=self._train_and_evaluate_model,
-            expand=1,
-            style=ft.ButtonStyle(
-                shape=ft.RoundedRectangleBorder(radius=8),
-                elevation=5,
-                text_style=ft.TextStyle(font_family="SF regular"),
-            )
-        )
-        
+        self._build_train_button()
+
         return ft.Card(
             expand=2,
             content=ft.Container(

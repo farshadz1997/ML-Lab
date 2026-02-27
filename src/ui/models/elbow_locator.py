@@ -11,96 +11,30 @@ Configurable hyperparameters:
 """
 
 from __future__ import annotations
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple
 import flet as ft
 from dataclasses import dataclass
-from pandas import DataFrame
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import numpy as np
 from kneed import KneeLocator
-from core.data_preparation import prepare_data_for_training_no_split
 from utils.model_utils import (
     format_results_markdown,
     create_results_dialog,
     disable_navigation_bar,
     enable_navigation_bar,
 )
-
-if TYPE_CHECKING:
-    from ..model_factory import ModelFactory
+from .base_model import BaseModel
 
 
 @dataclass
-class ElbowLocatorModel:
+class ElbowLocatorModel(BaseModel):
     """Elbow Locator model for automatic optimal cluster detection."""
-    
-    parent: ModelFactory
-    df: DataFrame = None
-    train_btn: Optional[ft.ElevatedButton] = None
-    
-    def __post_init__(self):
-        """Initialize the model with parent reference."""
-        self.df = self.df.copy()
-    
-    def _prepare_data(self) -> Optional[Tuple]:
-        """
-        Prepare and scale data for elbow detection.
-        
-        Returns:
-            Tuple of (scaled_data, feature_columns) or None if preparation fails
-        """
-        try:
-            X = self.df.copy()
-            
-            # Handle missing values
-            X = X.fillna(X.mean(numeric_only=True))
-            
-            # Call spec-compliant data preparation for clustering (no split)
-            (
-                X_encoded,
-                _,  # y is None for clustering
-                categorical_cols,
-                numeric_cols,
-                encoders,
-                cardinality_warnings,
-            ) = prepare_data_for_training_no_split(
-                X,
-                target_col=None,  # No target for clustering
-                raise_on_unseen=True,
-            )
-            
-            # Store encoding metadata
-            self.categorical_cols = categorical_cols
-            self.numeric_cols = numeric_cols
-            self.encoders = encoders
-            self.cardinality_warnings = cardinality_warnings
-            
-            # Warn about high-cardinality columns
-            if cardinality_warnings:
-                warning_msgs = [
-                    f"{col}: {w.message}"
-                    for col, w in cardinality_warnings.items()
-                ]
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text(
-                        "Cardinality warnings: " + "; ".join(warning_msgs),
-                        font_family="SF regular",
-                    ),
-                    bgcolor="#FF9800"
-                ))
-            
-            # Scale data
-            scaler = StandardScaler() if self.parent.scaler_dropdown.value == "standard_scaler" else MinMaxScaler(feature_range=(0, 1))
-            X_scaled = scaler.fit_transform(X_encoded)
-            
-            return X_scaled, X_encoded.columns.tolist()
-        
-        except Exception as e:
-            self.parent.page.open(ft.SnackBar(
-                ft.Text(f"Data preparation error: {str(e)}", font_family="SF regular")
-            ))
-            return None
+
+    def _prepare_data(self):
+        """Prepare and scale data for elbow detection."""
+        # Handle missing values before data preparation
+        self.df = self.df.fillna(self.df.mean(numeric_only=True))
+        return self._prepare_data_clustering()
     
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train elbow locator model and display results with optimal cluster recommendation."""
@@ -124,9 +58,7 @@ class ElbowLocatorModel:
             
             # Validate parameters
             if max_clusters < 2 or max_clusters > 20:
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text("Max clusters must be between 2 and 20", font_family="SF regular")
-                ))
+                self._show_snackbar("Max clusters must be between 2 and 20", bgcolor=ft.Colors.RED_500)
                 enable_navigation_bar(self.parent.page)
                 return
             
@@ -198,9 +130,7 @@ class ElbowLocatorModel:
         
         except Exception as e:
             enable_navigation_bar(self.parent.page)
-            self.parent.page.open(ft.SnackBar(
-                ft.Text(f"Training failed: {str(e)}", font_family="SF regular")
-            ))
+            self._show_snackbar(f"Training failed: {str(e)}", bgcolor=ft.Colors.RED_500)
         
         finally:
             self.parent.enable_model_selection()

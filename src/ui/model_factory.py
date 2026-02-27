@@ -1,12 +1,8 @@
 from __future__ import annotations
-import logging
-from pathlib import Path
 import flet as ft
-import pandas as pd
 import numpy as np
-from typing import List, Literal, Any, TYPE_CHECKING, Type, Dict
-from dataclasses import dataclass, field
-from helpers import resource_path
+from typing import Literal, TYPE_CHECKING, Type, Dict
+from dataclasses import dataclass
 from .models import (
     LinearRegressionModel,
     LogisticRegressionModel,
@@ -15,7 +11,6 @@ from .models import (
     SVMModel,
     KNNModel,
     DecisionTreeModel,
-    DecisionTreeRegressorModel,
     KMeansModel,
     MiniBatchKMeansModel,
     HierarchicalClusteringModel,
@@ -26,16 +21,15 @@ from .models import (
     AffinityPropagationModel,
     ElbowLocatorModel,
 )
-import json
 
 if TYPE_CHECKING:
     from .layout import AppLayout
 
 MODEL_TYPE = Literal["Classification", "Regression"]
 CLASSIFIER = Literal["logistic_regression", "random_forest", "gradient_boosting", "svm", "knn", "decision_tree"]
-REGRESSOR = Literal["linear_regression", "random_forest", "gradient_boosting", "svm", "decision_tree_regressor"]
+REGRESSOR = Literal["linear_regression", "random_forest", "gradient_boosting", "svm", "decision_tree"]
 CLUSTERER = Literal["kmeans", "minibatch_kmeans", "hierarchical", "dbscan", "hdbscan", "gaussian_mixture", "mean_shift", "affinity_propagation", "elbow_locator"]
-MODELS = Literal["linear_regression", "logistic_regression", "random_forest", "gradient_boosting", "svm", "knn", "decision_tree", "decision_tree_regressor", "kmeans", "minibatch_kmeans", "hierarchical", "dbscan", "hdbscan", "gaussian_mixture", "mean_shift", "affinity_propagation", "elbow_locator"]
+MODELS = Literal["linear_regression", "logistic_regression", "random_forest", "gradient_boosting", "svm", "knn", "decision_tree", "kmeans", "minibatch_kmeans", "hierarchical", "dbscan", "hdbscan", "gaussian_mixture", "mean_shift", "affinity_propagation", "elbow_locator"]
 
 # Model registry for dynamic instantiation (Factory Pattern)
 # Maps model name to model class; populated as new models are implemented
@@ -49,7 +43,7 @@ MODEL_REGISTRY: Dict[str, Type] = {
     'knn': KNNModel,
     'decision_tree': DecisionTreeModel,
     # Regression models
-    'decision_tree_regressor': DecisionTreeRegressorModel,
+    'decision_tree': DecisionTreeModel,
     # Clustering models
     'kmeans': KMeansModel,
     'minibatch_kmeans': MiniBatchKMeansModel,
@@ -75,7 +69,7 @@ REGRESSION_MODELS_OPTIONS = [
     ft.DropdownOption("random_forest", text="Random forest"),
     ft.DropdownOption("gradient_boosting", text="Gradient boosting"),
     ft.DropdownOption("svm", text="SVM"),
-    ft.DropdownOption("decision_tree_regressor", text="Decision Tree"),
+    ft.DropdownOption("decision_tree", text="Decision Tree"),
 ]
 CLUSTERING_MODELS_OPTIONS = [
     ft.DropdownOption("kmeans", text="K-Means"),

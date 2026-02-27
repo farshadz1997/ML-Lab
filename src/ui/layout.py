@@ -53,7 +53,7 @@ class AppLayout:
             return
         self.page.open(ft.SnackBar(
             ft.Text(f"Warning: {message}", font_family="SF regular"),
-            bgcolor=ft.Colors.YELLOW_700,
+            bgcolor=ft.Colors.AMBER_ACCENT_400,
             action="Alright!",
             duration=20000
         ))

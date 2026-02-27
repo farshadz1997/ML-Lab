@@ -12,14 +12,11 @@ Configurable hyperparameters:
 """
 
 from __future__ import annotations
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple
 import flet as ft
 from dataclasses import dataclass
-from pandas import DataFrame
 from sklearn.model_selection import train_test_split, cross_val_score, KFold
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder, OneHotEncoder, FunctionTransformer
-from sklearn.compose import ColumnTransformer
 
 from utils.model_utils import (
     calculate_classification_metrics,
@@ -28,87 +25,16 @@ from utils.model_utils import (
     disable_navigation_bar,
     enable_navigation_bar,
 )
-from core.data_preparation import prepare_data_for_training, prepare_data_for_training_no_split
-
-if TYPE_CHECKING:
-    from ..model_factory import ModelFactory
+from .base_model import BaseModel
 
 
 @dataclass
-class KNNModel:
+class KNNModel(BaseModel):
     """K-Nearest Neighbors classification model."""
-    
-    parent: ModelFactory
-    df: DataFrame
-    
-    def __post_init__(self):
-        """Ensure dataset is copied to avoid mutations."""
-        self.df = self.df.copy()
-    
-    def _prepare_data(self) -> Optional[Tuple]:
-        """
-        Prepare data for training using spec-compliant categorical encoding.
-        
-        Uses prepare_data_for_training() which:
-        - Performs train-test split BEFORE encoding (prevents data leakage)
-        - Fits encoders ONLY on training data
-        - Applies encoders to test data
-        - Returns encoding metadata and cardinality warnings
-        
-        Returns:
-            Tuple of (X_train, X_test, y_train, y_test, categorical_cols, numeric_cols,
-                      encoders, warnings) or None if error
-        """
-        try:
-            target_name = self.parent.target_column_dropdown.value
-            test_size = self.parent.test_size_field.value / 100
-            
-            # Call spec-compliant data preparation
-            (
-                X_train,
-                X_test,
-                y_train,
-                y_test,
-                categorical_cols,
-                numeric_cols,
-                encoders,
-                cardinality_warnings,
-            ) = prepare_data_for_training(
-                self.df.copy(),
-                target_col=target_name,
-                test_size=test_size,
-                random_state=42,
-                raise_on_unseen=True,
-            )
-            
-            # Store encoding metadata for later use
-            self.categorical_cols = categorical_cols
-            self.numeric_cols = numeric_cols
-            self.encoders = encoders
-            self.cardinality_warnings = cardinality_warnings
-            
-            # Warn user about high-cardinality columns if any
-            if cardinality_warnings:
-                warning_msgs = [
-                    f"{col}: {w.message}"
-                    for col, w in cardinality_warnings.items()
-                ]
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text(
-                        "Cardinality warnings: " + "; ".join(warning_msgs),
-                        font_family="SF regular",
-                    ),
-                    bgcolor="#FF9800"
-                ))
-            
-            # Return tuple for backward compatibility with train method
-            return X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols)
-        
-        except Exception as e:
-            self.parent.page.open(ft.SnackBar(
-                ft.Text(f"Data preparation error: {str(e)}", font_family="SF regular")
-            ))
-            return None
+
+    def _prepare_data(self):
+        """Prepare data for training."""
+        return self._prepare_data_supervised()
     
     def _validate_hyperparameters(self) -> Tuple[dict, bool]:
         """
@@ -189,10 +115,7 @@ class KNNModel:
             hyperparams, params_valid = self._validate_hyperparameters()
             
             if not params_valid:
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text("Invalid hyperparameters. Using default values.", font_family="SF regular"),
-                    bgcolor="#FF9800"
-                ))
+                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
             
             model = KNeighborsClassifier(
                 n_neighbors=hyperparams['n_neighbors'],
@@ -228,9 +151,7 @@ class KNNModel:
         
         except Exception as e:
             enable_navigation_bar(self.parent.page)
-            self.parent.page.open(ft.SnackBar(
-                ft.Text(f"Training failed: {str(e)}", font_family="SF regular")
-            ))
+            self._show_snackbar(f"Training failed: {str(e)}", bgcolor=ft.Colors.RED_500)
         
         finally:
             self.parent.enable_model_selection()
@@ -319,18 +240,8 @@ class KNNModel:
             tooltip="Distance metric. euclidean=straight-line, manhattan=grid-based, minkowski=general",
         )
         
-        self.train_btn = ft.FilledButton(
-            text="Train and evaluate model",
-            icon=ft.Icons.PSYCHOLOGY,
-            on_click=self._train_and_evaluate_model,
-            expand=1,
-            style=ft.ButtonStyle(
-                shape=ft.RoundedRectangleBorder(radius=8),
-                elevation=5,
-                text_style=ft.TextStyle(font_family="SF regular"),
-            )
-        )
-        
+        self._build_train_button()
+
         return ft.Card(
             expand=2,
             content=ft.Container(

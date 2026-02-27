@@ -14,105 +14,30 @@ Configurable hyperparameters:
 """
 
 from __future__ import annotations
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple
 import flet as ft
 from dataclasses import dataclass
-from pandas import DataFrame
 from sklearn.model_selection import train_test_split, cross_val_score, KFold
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder, OneHotEncoder, FunctionTransformer
-from sklearn.compose import ColumnTransformer
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 from utils.model_utils import (
     check_data_quality,
     calculate_classification_metrics,
+    calculate_regression_metrics,
     format_results_markdown,
     create_results_dialog,
     get_feature_importance,
-    disable_navigation_bar,
-    enable_navigation_bar,
 )
-from core.data_preparation import prepare_data_for_training, prepare_data_for_training_no_split
-
-if TYPE_CHECKING:
-    from ..model_factory import ModelFactory
+from .base_model import BaseModel
 
 
 @dataclass
-class DecisionTreeModel:
+class DecisionTreeModel(BaseModel):
     """Decision Tree classifier with configurable hyperparameters."""
-    
-    parent: ModelFactory
-    df: DataFrame
-    
-    def __post_init__(self):
-        """Ensure dataset is copied to avoid mutations."""
-        self.df = self.df.copy()
-    
-    def _prepare_data(self) -> Optional[Tuple]:
-        """
-        Prepare data for training using spec-compliant categorical encoding.
-        
-        Uses prepare_data_for_training() which:
-        - Performs train-test split BEFORE encoding (prevents data leakage)
-        - Fits encoders ONLY on training data
-        - Applies encoders to test data
-        - Returns encoding metadata and cardinality warnings
-        
-        Returns:
-            Tuple of (X_train, X_test, y_train, y_test, categorical_cols, numeric_cols,
-                      encoders, warnings) or None if error
-        """
-        try:
-            target_name = self.parent.target_column_dropdown.value
-            test_size = self.parent.test_size_field.value / 100
-            
-            # Call spec-compliant data preparation
-            (
-                X_train,
-                X_test,
-                y_train,
-                y_test,
-                categorical_cols,
-                numeric_cols,
-                encoders,
-                cardinality_warnings,
-            ) = prepare_data_for_training(
-                self.df.copy(),
-                target_col=target_name,
-                test_size=test_size,
-                random_state=42,
-                raise_on_unseen=True,
-            )
-            
-            # Store encoding metadata for later use
-            self.categorical_cols = categorical_cols
-            self.numeric_cols = numeric_cols
-            self.encoders = encoders
-            self.cardinality_warnings = cardinality_warnings
-            
-            # Warn user about high-cardinality columns if any
-            if cardinality_warnings:
-                warning_msgs = [
-                    f"{col}: {w.message}"
-                    for col, w in cardinality_warnings.items()
-                ]
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text(
-                        "Cardinality warnings: " + "; ".join(warning_msgs),
-                        font_family="SF regular",
-                    ),
-                    bgcolor="#FF9800"
-                ))
-            
-            # Return tuple for backward compatibility with train method
-            return X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols)
-        
-        except Exception as e:
-            self.parent.page.open(ft.SnackBar(
-                ft.Text(f"Data preparation error: {str(e)}", font_family="SF regular")
-            ))
-            return None
+
+    def _prepare_data(self):
+        """Prepare data for training."""
+        return self._prepare_data_supervised()
     
     def _validate_hyperparameters(self) -> tuple[dict, bool]:
         """
@@ -140,7 +65,7 @@ class DecisionTreeModel:
         # Validate min_samples_split
         try:
             min_split_value = int(self.min_samples_split_field.value)
-            if min_split_value < 2 or min_split_value > 20:
+            if min_split_value < 2:
                 min_split_value = 2
                 is_valid = False
             params['min_samples_split'] = min_split_value
@@ -151,7 +76,7 @@ class DecisionTreeModel:
         # Validate min_samples_leaf
         try:
             min_leaf_value = int(self.min_samples_leaf_field.value)
-            if min_leaf_value < 1 or min_leaf_value > 20:
+            if min_leaf_value < 1:
                 min_leaf_value = 1
                 is_valid = False
             params['min_samples_leaf'] = min_leaf_value
@@ -160,10 +85,14 @@ class DecisionTreeModel:
             is_valid = False
         
         # Validate criterion
-        valid_criteria = ['gini', 'entropy', 'log_loss']
+        task_type = self._get_task_type()
+        if task_type == "Classification":
+            valid_criteria = ['gini', 'entropy', 'log_loss']
+        else:
+            valid_criteria = ['squared_error', 'friedman_mse', 'absolute_error', 'poisson']
         criterion_value = self.criterion_dropdown.value
         if criterion_value not in valid_criteria:
-            criterion_value = 'gini'
+            criterion_value = valid_criteria[0]  # Default to first valid criterion
             is_valid = False
         params['criterion'] = criterion_value
         
@@ -194,9 +123,7 @@ class DecisionTreeModel:
             # Check data quality first
             is_valid, error_msg = check_data_quality(self.df, self.parent.target_column_dropdown.value)
             if not is_valid:
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text(f"Data error: {error_msg}", font_family="SF regular")
-                ))
+                self._show_snackbar(f"Data error: {error_msg}", bgcolor=ft.Colors.RED_500)
                 return
             
             # Prepare data
@@ -211,24 +138,30 @@ class DecisionTreeModel:
             
             # If invalid params were detected, inform user
             if not params_valid:
-                self.parent.page.open(ft.SnackBar(
-                    ft.Text(
-                        "Some hyperparameters were invalid. Using defaults.",
-                        font_family="SF regular",
-                    ),
-                    bgcolor="#FF9800"
-                ))
+                self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)
             
             # Create and train model with validated parameters
-            model = DecisionTreeClassifier(
-                max_depth=hyperparams['max_depth'],
-                min_samples_split=hyperparams['min_samples_split'],
-                min_samples_leaf=hyperparams['min_samples_leaf'],
-                criterion=hyperparams['criterion'],
-                splitter=hyperparams['splitter'],
-                max_features=hyperparams['max_features'],
-                random_state=42,
-            )
+            task_type = self._get_task_type()
+            if task_type == "Classification":
+                model = DecisionTreeClassifier(
+                    max_depth=hyperparams['max_depth'],
+                    min_samples_split=hyperparams['min_samples_split'],
+                    min_samples_leaf=hyperparams['min_samples_leaf'],
+                    criterion=hyperparams['criterion'],
+                    splitter=hyperparams['splitter'],
+                    max_features=hyperparams['max_features'],
+                    random_state=42,
+                )
+            else:
+                model = DecisionTreeRegressor(
+                    max_depth=hyperparams['max_depth'],
+                    min_samples_split=hyperparams['min_samples_split'],
+                    min_samples_leaf=hyperparams['min_samples_leaf'],
+                    criterion=hyperparams['criterion'],
+                    splitter=hyperparams['splitter'],
+                    max_features=hyperparams['max_features'],
+                    random_state=42,
+                )
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
             
@@ -241,7 +174,10 @@ class DecisionTreeModel:
             cv_results = cross_val_score(model, X_train, y_train, cv=kf)
             
             # Calculate metrics using centralized utility
-            metrics_dict = calculate_classification_metrics(y_test, y_pred)
+            if task_type == "Classification":
+                metrics_dict = calculate_classification_metrics(y_test, y_pred)
+            else:
+                metrics_dict = calculate_regression_metrics(y_test, y_pred)
             metrics_dict["CV"] = cv_results
             
             # Get feature importance for decision tree
@@ -249,21 +185,19 @@ class DecisionTreeModel:
             if feature_importance:
                 metrics_dict['feature_importance'] = feature_importance
             
-            result_text = format_results_markdown(metrics_dict, task_type="classification")
+            result_text = format_results_markdown(metrics_dict, task_type=task_type.lower())
             
             # Display results dialog with copy button
             evaluation_dialog = create_results_dialog(
                 self.parent.page,
-                "Decision Tree Classification Results",
+                f"Decision Tree {task_type} Results",
                 result_text,
                 "Decision Tree"
             )
             self.parent.page.open(evaluation_dialog)
         
         except Exception as e:
-            self.parent.page.open(ft.SnackBar(
-                ft.Text(f"Training failed: {str(e)}", font_family="SF regular")
-            ))
+            self._show_snackbar(f"Training failed: {str(e)}", bgcolor=ft.Colors.RED_500)
         
         finally:
             self.parent.enable_model_selection()
@@ -318,6 +252,16 @@ class DecisionTreeModel:
             tooltip="Function to measure split quality. gini=default, entropy=information gain based",
         )
         
+        if self._get_task_type() == "Regression":
+            self.criterion_dropdown.options = [
+                ft.DropdownOption("squared_error"),
+                ft.DropdownOption("friedman_mse"),
+                ft.DropdownOption("absolute_error"),
+                ft.DropdownOption("poisson"),
+            ]
+            self.criterion_dropdown.value = "squared_error"
+            self.criterion_dropdown.tooltip = "Function to measure split quality. squared_error=default for regression"
+        
         self.splitter_dropdown = ft.Dropdown(
             label="Splitter",
             value="best",
@@ -345,18 +289,8 @@ class DecisionTreeModel:
             tooltip="Number of features to consider for splits. sqrt/log2 reduce overfitting on high-dimensional data",
         )
         
-        self.train_btn = ft.FilledButton(
-            text="Train and evaluate model",
-            icon=ft.Icons.PSYCHOLOGY,
-            on_click=self._train_and_evaluate_model,
-            expand=1,
-            style=ft.ButtonStyle(
-                shape=ft.RoundedRectangleBorder(radius=8),
-                elevation=5,
-                text_style=ft.TextStyle(font_family="SF regular"),
-            )
-        )
-        
+        self._build_train_button()
+
         return ft.Card(
             expand=2,
             content=ft.Container(
