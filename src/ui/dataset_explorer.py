@@ -40,7 +40,7 @@ class DatasetExplorer:
     def _drop_column(self, control: ft.Control) -> None:
         column = control.parent.content.value
         if len(self.parent.dataset.df.columns) == 1:
-            self.parent.page.open(ft.SnackBar(ft.Text(f"'{column}' can't be removed! at least one column need to be in dataset", font_family="SF regular")))
+            self.parent.page.open(ft.SnackBar(ft.Text(f"'{column}' can't be removed! at least one column need to be in dataset", font_family="SF regular"), action="Ok"))
             return
         is_removed = self.parent.dataset.drop_column(column)
         if is_removed:
@@ -50,24 +50,24 @@ class DatasetExplorer:
             datatable.columns.remove(column_control)
             for row in datatable.rows:
                 row.cells.pop(column_idx)
-            self.parent.page.open(ft.SnackBar(ft.Text(f"'{column}' has been removed from dataset", font_family="SF regular")))
+            self.parent.page.open(ft.SnackBar(ft.Text(f"'{column}' has been removed from dataset", font_family="SF regular"), action="Ok"))
             self.page.update()
             return
         self.parent.page.open(ft.SnackBar(ft.Text(f"'{column}' not found in dataset", font_family="SF regular")))
     
     def _drop_row(self, idx: int, control: ft.Control) -> None:
         if idx < 0 or idx >= self.parent.dataset.shape[0]:
-            self.parent.page.open(ft.SnackBar(ft.Text(f"Row index '{idx}' is out of bounds", font_family="SF regular")))
+            self.parent.page.open(ft.SnackBar(ft.Text(f"Row index '{idx}' is out of bounds", font_family="SF regular"), action="Ok"))
             return
         is_dropped = self.parent.dataset.drop_row(idx)
         if is_dropped:
             data_row = control.parent.parent.parent.parent
             datatable: ft.DataTable = data_row.parent
             datatable.rows.remove(data_row)
-            self.parent.page.open(ft.SnackBar(ft.Text(f"Row index '{idx}' has been removed from dataset", font_family="SF regular")))
+            self.parent.page.open(ft.SnackBar(ft.Text(f"Row index '{idx}' has been removed from dataset", font_family="SF regular"), action="Ok"))
             self.page.update()
             return
-        self.parent.page.open(ft.SnackBar(ft.Text(f"Row index '{idx}' not found in dataset", font_family="SF regular")))
+        self.parent.page.open(ft.SnackBar(ft.Text(f"Row index '{idx}' not found in dataset", font_family="SF regular"), action="Ok"))
         
     def _open_rename_field(self, control: ft.Control) -> None:
         def on_blur_event(e: ft.ControlEvent, previous_control: ft.MenuBar, previous_name: str) -> None:
@@ -109,7 +109,7 @@ class DatasetExplorer:
         removed_count = initial_count - final_count
         
         message = f"Removed {removed_count} duplicate row(s). Dataset now has {final_count} rows."
-        self.parent.page.open(ft.SnackBar(ft.Text(message, font_family="SF regular")))
+        self.parent.page.open(ft.SnackBar(ft.Text(message, font_family="SF regular"), action="Ok"))
         
         # Refresh current display
         if self.current_display_mode:
@@ -123,7 +123,7 @@ class DatasetExplorer:
         removed_count = initial_count - final_count
         
         message = f"Removed {removed_count} row(s) with NaN values. Dataset now has {final_count} rows."
-        self.parent.page.open(ft.SnackBar(ft.Text(message, font_family="SF regular")))
+        self.parent.page.open(ft.SnackBar(ft.Text(message, font_family="SF regular"), action="Ok"))
         
         # Refresh current display
         if self.current_display_mode:
@@ -171,12 +171,12 @@ class DatasetExplorer:
                         new_value = pd.to_numeric(new_value)
                     success = self.parent.dataset.replace_in_column(column, old_value, new_value)
                 if success:
-                    self.page.open(ft.SnackBar(ft.Text(f'Replaced "{old_value}" with "{new_value}" in column "{column}"', font_family="SF regular")))
+                    self.page.open(ft.SnackBar(ft.Text(f'Replaced "{old_value}" with "{new_value}" in column "{column}"', font_family="SF regular"), action="Ok"))
                 self.page.close(dialog)
                 self._refresh_display()
             except Exception as e:
                 self.page.close(dialog) 
-                self.page.open(ft.SnackBar(ft.Text(e, font_family="SF regular")))
+                self.page.open(ft.SnackBar(ft.Text(e, font_family="SF regular"), action="Ok"))
         
         def _suffix_button_on_click(e: ft.ControlEvent) -> None:
             if e.control.text == "String":
@@ -305,12 +305,12 @@ class DatasetExplorer:
                 self._refresh_display()
                 self.page.close(dialog)
                 if success:
-                    self.page.open(ft.SnackBar(ft.Text(f"Data type of column '{column}' changed to '{dtypes_dropdown.value}'", font_family="SF regular")))
+                    self.page.open(ft.SnackBar(ft.Text(f"Data type of column '{column}' changed to '{dtypes_dropdown.value}'", font_family="SF regular"), action="Ok"))
                 else:
-                    self.page.open(ft.SnackBar(ft.Text(f"'{column}' not exists", font_family="SF regular")))
+                    self.page.open(ft.SnackBar(ft.Text(f"'{column}' not exists", font_family="SF regular"), action="Ok"))
             except Exception as e:
                 self.page.close(dialog)
-                self.page.open(ft.SnackBar(ft.Text(f"Failed to change data type of column '{column}': {str(e)}", font_family="SF regular")))
+                self.page.open(ft.SnackBar(ft.Text(f"Failed to change data type of column '{column}': {str(e)}", font_family="SF regular"), action="Ok"))
         
         dtypes_dropdown = ft.Dropdown(
             label="Dtypes",
@@ -439,11 +439,11 @@ class DatasetExplorer:
                 
                 previous_text_button.text = display_val
                 self.parent.page.open(ft.SnackBar(
-                    ft.Text(f"Cell updated successfully", font_family="SF regular")
+                    ft.Text(f"Cell updated successfully", font_family="SF regular"), action="Ok"
                 ))
             else:
                 self.parent.page.open(ft.SnackBar(
-                    ft.Text(f"Failed to update cell", font_family="SF regular")
+                    ft.Text(f"Failed to update cell", font_family="SF regular"), action="Ok"
                 ))
             
             previous_text_button.on_click = lambda e: self._open_edit_cell_field(e.control, row_idx, column, str(new_value))
@@ -539,14 +539,14 @@ class DatasetExplorer:
             
             if page < 1 or page > max_page:
                 self.parent.page.open(
-                    ft.SnackBar(ft.Text(f"Page must be between 1 and {max_page}", font_family="SF regular"))
+                    ft.SnackBar(ft.Text(f"Page must be between 1 and {max_page}", font_family="SF regular"), action="Ok")
                 )
                 return
             
             self._create_paginated_table(df, title, page)
         except ValueError:
             self.parent.page.open(
-                ft.SnackBar(ft.Text("Invalid page number. Please enter a valid integer.", font_family="SF regular"))
+                ft.SnackBar(ft.Text("Invalid page number. Please enter a valid integer.", font_family="SF regular"), action="Ok")
             )
 
     def _filter_by_row_index(self, index_field: ft.TextField, df: pd.DataFrame, title: str) -> None:
@@ -555,7 +555,7 @@ class DatasetExplorer:
             input_val = index_field.value.strip() if index_field.value else ""
             if not input_val:
                 self.parent.page.open(
-                    ft.SnackBar(ft.Text("Please enter a row index or range (e.g., '5' or '5-10')", font_family="SF regular"))
+                    ft.SnackBar(ft.Text("Please enter a row index or range (e.g., '5' or '5-10')", font_family="SF regular"), action="Ok")
                 )
                 return
             
@@ -595,7 +595,7 @@ class DatasetExplorer:
         
         except ValueError as e:
             self.parent.page.open(
-                ft.SnackBar(ft.Text(f"Invalid input: {str(e)}", font_family="SF regular"))
+                ft.SnackBar(ft.Text(f"Invalid input: {str(e)}", font_family="SF regular"), action="Ok")
             )
 
     def _create_paginated_table(self, df: pd.DataFrame, title: str, page: int = 1) -> None:
@@ -903,9 +903,9 @@ class DatasetExplorer:
     def _export_csv(self, e: ft.ControlEvent | None = None) -> None:
         try:
             export_path = self.parent.dataset.export_csv()
-            self.parent.page.open(ft.SnackBar(ft.Text(f"Dataset exported successfully to {export_path}", font_family="SF regular")))
+            self.parent.page.open(ft.SnackBar(ft.Text(f"Dataset exported successfully to {export_path}", font_family="SF regular"), action="Ok"))
         except Exception as e:
-            self.parent.page.open(ft.SnackBar(ft.Text(f"Failed to export dataset: {e}", font_family="SF regular")))
+            self.parent.page.open(ft.SnackBar(ft.Text(f"Failed to export dataset: {e}", font_family="SF regular"), action="Ok"))
     
     def close_dataset(self, e: ft.ControlEvent | None = None) -> None:
         self.parent.dataset = None
@@ -936,7 +936,7 @@ class DatasetExplorer:
     def _reset_index(self, e: ft.ControlEvent | None = None) -> None:
         """Reset the DataFrame index"""
         self.parent.dataset.reset_index()
-        self.parent.page.open(ft.SnackBar(ft.Text("Dataset index has been reset.", font_family="SF regular")))
+        self.parent.page.open(ft.SnackBar(ft.Text("Dataset index has been reset.", font_family="SF regular"), action="Ok"))
         
         if self.current_display_mode:
             self._refresh_display()
@@ -946,7 +946,7 @@ class DatasetExplorer:
         try:
             series = self.parent.dataset.df[column]
         except Exception:
-            self.parent.page.open(ft.SnackBar(ft.Text(f"Column '{column}' not found", font_family="SF regular")))
+            self.parent.page.open(ft.SnackBar(ft.Text(f"Column '{column}' not found", font_family="SF regular"), action="Ok"))
             return
 
         vc = series.value_counts(dropna=False)
@@ -1026,6 +1026,99 @@ class DatasetExplorer:
             ok_btn.disabled = False
             self.page.update()
         
+    def _open_custom_operation_dialog(self) -> None:
+        operation_field = ft.TextField(
+            label="Operation (use 'df' to reference the dataset)",
+            label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
+            hint_text="e.g. df.dropna(inplace=True)",
+            hint_style=ft.TextStyle(font_family="SF light"),
+            error_style=ft.TextStyle(font_family="SF regular", color=ft.Colors.RED),
+            multiline=True,
+            min_lines=3,
+            max_lines=6,
+            expand=True,
+        )
+
+        def _on_apply():
+            nonlocal operation_field, dialog
+            code = operation_field.value
+            if not code or not code.strip():
+                operation_field.error_text = "Please enter an operation"
+                self.page.update()
+                return
+            if "self" in code:
+                operation_field.error_text = "Access to 'self' is not allowed"
+                self.page.update()
+                return
+            try:
+                df = self.parent.dataset.df.copy()
+                local_vars = {"df": df, "pd": pd, "np": np}
+                exec(code, {"__builtins__": {}}, local_vars)
+                result_df = local_vars["df"]
+                if not isinstance(result_df, pd.DataFrame):
+                    operation_field.error_text = "'df' must remain a pandas DataFrame"
+                    self.page.update()
+                    return
+                self.parent.dataset.df = result_df
+                self.page.close(dialog)
+                self._refresh_display()
+                self.page.open(ft.SnackBar(ft.Text("Operation applied successfully", font_family="SF regular"), action="Ok"))
+            except Exception as e:
+                operation_field.error_text = str(e)
+                self.page.update()
+
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Column(
+                controls=[
+                    ft.Row([ft.Text("Custom Operation", font_family="SF thin", expand=True, text_align="center")]),
+                    ft.Divider()
+                ]
+            ),
+            content=ft.Container(
+                width=500,
+                expand=True,
+                content=ft.Column(
+                    scroll=ft.ScrollMode.AUTO,
+                    controls=[
+                        ft.Text(
+                            "Enter a Python expression using 'df' to modify the dataset. 'pd' is available as pandas and 'np' as numpy. Be careful, this can execute arbitrary code but 'self' and other variables are not accessible.",
+                            font_family="SF light",
+                            size=15,
+                            color=ft.Colors.GREY_400
+                        ),
+                        ft.Text(
+                            "Examples: df.dropna(inplace=True), df['col'] = df['col'] * 2",
+                            font_family="SF light",
+                            size=13,
+                            color=ft.Colors.GREY_400
+                        ),
+                        ft.Row([operation_field]),
+                    ],
+                ),
+            ),
+            actions=[
+                ft.Row(
+                    controls=[
+                        ft.OutlinedButton(
+                            text="Cancel",
+                            style=ft.ButtonStyle(text_style=ft.TextStyle(font_family="SF regular")),
+                            expand=1,
+                            on_click=lambda _: self.page.close(dialog)
+                        ),
+                        ft.FilledButton(
+                            text="Apply",
+                            style=ft.ButtonStyle(text_style=ft.TextStyle(font_family="SF regular")),
+                            expand=1,
+                            on_click=lambda _: _on_apply()
+                        )
+                    ]
+                )
+            ]
+        )
+        self.page.open(dialog)
+
     def build_controls(self) -> ft.Column:
         if self.column:
             return self.column
@@ -1190,11 +1283,23 @@ class DatasetExplorer:
                 text_style=ft.TextStyle(font_family="SF regular"),
             )
         )
+        self.custom_operation_button = ft.FilledButton(
+            text="Custom Operation",
+            icon=ft.Icons.CODE,
+            height=40,
+            on_click=lambda _: self._open_custom_operation_dialog(),
+            style=ft.ButtonStyle(
+                shape=ft.RoundedRectangleBorder(radius=8),
+                elevation=5,
+                text_style=ft.TextStyle(font_family="SF regular"),
+            )
+        )
         self.display_tables_options_row = ft.Row(
             visible=False,
             controls=[
                 ft.Text("Tools:", font_family="SF thin", size=16, expand=1),
                 self.export_csv_button,
+                self.custom_operation_button,
                 auto_eda_menu,
                 display_options_menu,
                 data_quality_menu
