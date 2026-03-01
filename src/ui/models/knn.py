@@ -1,8 +1,12 @@
 """
-K-Nearest Neighbors (KNN) Classification Model
+K-Nearest Neighbors (KNN) Classification and Regression Model
 
-Instance-based classifier that stores training instances and classifies
+Instance-based model that stores training instances and predicts
 based on nearest neighbors in feature space.
+
+Supports both:
+- Classification: KNeighborsClassifier
+- Regression: KNeighborsRegressor
 
 Configurable hyperparameters:
 - n_neighbors: Number of neighbors to consider
@@ -16,10 +20,11 @@ from typing import Optional, Tuple
 import flet as ft
 from dataclasses import dataclass
 from sklearn.model_selection import train_test_split, cross_val_score, KFold
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
 from utils.model_utils import (
     calculate_classification_metrics,
+    calculate_regression_metrics,
     format_results_markdown,
     create_results_dialog,
     disable_navigation_bar,
@@ -30,16 +35,16 @@ from .base_model import BaseModel
 
 @dataclass
 class KNNModel(BaseModel):
-    """K-Nearest Neighbors classification model."""
+    """K-Nearest Neighbors model supporting both classification and regression."""
 
     def _prepare_data(self):
         """Prepare data for training."""
         return self._prepare_data_supervised()
-    
+
     def _validate_hyperparameters(self) -> Tuple[dict, bool]:
         """
         Validate hyperparameters and apply defaults for invalid values.
-        
+
         Returns:
             Tuple[dict, bool]: (validated_params, is_valid)
                 - validated_params: dict with valid hyperparameters
@@ -47,7 +52,7 @@ class KNNModel(BaseModel):
         """
         is_valid = True
         params = {}
-        
+
         # Validate n_neighbors
         try:
             n_neighbors = int(self.n_neighbors_field.value)
@@ -58,7 +63,7 @@ class KNNModel(BaseModel):
         except (ValueError, TypeError):
             params['n_neighbors'] = 5
             is_valid = False
-        
+
         # Validate weights
         try:
             weights = self.weights_dropdown.value
@@ -70,7 +75,7 @@ class KNNModel(BaseModel):
         except (ValueError, TypeError):
             params['weights'] = 'uniform'
             is_valid = False
-        
+
         # Validate algorithm
         try:
             algorithm = self.algorithm_dropdown.value
@@ -82,7 +87,7 @@ class KNNModel(BaseModel):
         except (ValueError, TypeError):
             params['algorithm'] = 'auto'
             is_valid = False
-            
+
         # Validate leaf size
         try:
             leaf_size = int(self.leaf_size_field.value)
@@ -93,9 +98,9 @@ class KNNModel(BaseModel):
         except (ValueError, TypeError):
             params['leaf_size'] = 30
             is_valid = False
-        
+
         return params, is_valid
-    
+
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train KNN model and display evaluation results."""
         try:
@@ -103,31 +108,44 @@ class KNNModel(BaseModel):
             self.parent.disable_model_selection()
             disable_navigation_bar(self.parent.page)
             self.parent.page.update()
-            
+
             data = self._prepare_data()
             if data is None:
                 enable_navigation_bar(self.parent.page)
                 return
-            
+
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
-            
+
             # Validate hyperparameters
             hyperparams, params_valid = self._validate_hyperparameters()
-            
+
             if not params_valid:
                 self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-            
-            model = KNeighborsClassifier(
-                n_neighbors=hyperparams['n_neighbors'],
-                weights=hyperparams['weights'],
-                algorithm=hyperparams['algorithm'],
-                metric=self.metric_dropdown.value,
-                leaf_size=hyperparams['leaf_size']
-            )
-            
+
+            task_type = self._get_task_type()
+
+            if task_type == "Classification":
+                model = KNeighborsClassifier(
+                    n_neighbors=hyperparams['n_neighbors'],
+                    weights=hyperparams['weights'],
+                    algorithm=hyperparams['algorithm'],
+                    metric=self.metric_dropdown.value,
+                    leaf_size=hyperparams['leaf_size'],
+                    n_jobs=-1
+                )
+            else:  # Regression
+                model = KNeighborsRegressor(
+                    n_neighbors=hyperparams['n_neighbors'],
+                    weights=hyperparams['weights'],
+                    algorithm=hyperparams['algorithm'],
+                    metric=self.metric_dropdown.value,
+                    leaf_size=hyperparams['leaf_size'],
+                    n_jobs=-1
+                )
+
             model.fit(X_train, y_train.to_numpy())
             y_pred = model.predict(X_test)
-            
+
             # Cross validation
             kf = KFold(
                 n_splits=int(self.parent.n_split_slider.value),
@@ -135,24 +153,29 @@ class KNNModel(BaseModel):
                 random_state=42 if self.parent.cross_val_shuffle_switch.value else None
             )
             cv_results = cross_val_score(model, X_train, y_train, cv=kf)
-            
-            metrics_dict = calculate_classification_metrics(y_test, y_pred)
-            metrics_dict["CV"] = cv_results
-            result_text = format_results_markdown(metrics_dict, task_type="classification")
-            
+
+            if task_type == "Classification":
+                metrics_dict = calculate_classification_metrics(y_test, y_pred)
+                metrics_dict["CV"] = cv_results
+                result_text = format_results_markdown(metrics_dict, task_type="classification")
+            else:
+                metrics_dict = calculate_regression_metrics(y_test, y_pred)
+                metrics_dict["CV"] = cv_results
+                result_text = format_results_markdown(metrics_dict, task_type="regression")
+
             evaluation_dialog = create_results_dialog(
                 self.parent.page,
-                "KNN Classification Results",
+                f"KNN {task_type} Results",
                 result_text,
                 "KNN"
             )
             self.parent.page.open(evaluation_dialog)
             enable_navigation_bar(self.parent.page)
-        
+
         except Exception as e:
             enable_navigation_bar(self.parent.page)
             self._show_snackbar(f"Training failed: {str(e)}", bgcolor=ft.Colors.RED_500)
-        
+
         finally:
             self.parent.enable_model_selection()
             self.train_btn.disabled = False
