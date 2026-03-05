@@ -13,7 +13,7 @@ Common utilities:
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, TYPE_CHECKING, Literal
+from typing import Optional, Tuple, TYPE_CHECKING, Literal, Callable
 import flet as ft
 from dataclasses import dataclass
 from pandas import DataFrame
@@ -27,6 +27,9 @@ from core.data_preparation import prepare_data_for_training, prepare_data_for_tr
 
 if TYPE_CHECKING:
     from ..model_factory import ModelFactory
+
+
+CLASSIFICATION_THRESHOLD = 50
 
 
 @dataclass
@@ -189,6 +192,10 @@ class BaseModel(ABC):
                 "Cardinality warnings: " + "; ".join(warning_msgs),
                 bgcolor=ft.Colors.AMBER_ACCENT_200,
             )
+            
+    def _target_to_total_rows_ratio(self) -> float | int:
+        """Returns percentage of unique values of target column to samples"""
+        return round((self.df[self.parent.target_column_dropdown.value].nunique() / self.df.shape[0]) * 100, 2)
 
     # ── UI Helpers ─────────────────────────────────────────────
 
@@ -200,8 +207,53 @@ class BaseModel(ABC):
         if bgcolor:
             snackbar.bgcolor = bgcolor
         self.parent.page.open(snackbar)
+    
+    def _show_wrong_task_type_dialog(
+        self, ratio: int | float,
+        task_type: Literal["Classification", "Regression"] = "Classification",
+        call_back_func: Callable | None = None,
+    ):
+        def _continue(callback: Callable):
+            nonlocal dialog
+            self.parent.page.close(dialog)
+            callback()
+        
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Column(
+                controls=[
+                    ft.Row([ft.Text(f'Wrong task type', font_family="SF thin", expand=True, text_align="center")]),
+                    ft.Divider()
+                ]
+            ),
+            content=ft.Container(
+                width=500,
+                content=ft.Text(
+                    f"This could be a '{task_type}' problem. Ratio percentage of '{self.parent.target_column_dropdown.value}' unique count to samples is %{ratio}. Would you like to continue?",
+                    font_family="SF regular",
+                    text_align=ft.TextAlign.CENTER
+                ),
+            ),
+            actions=[ft.Row(
+                controls=[
+                    ft.OutlinedButton(
+                        text="Cancel",
+                        expand=1,
+                        style=ft.ButtonStyle(text_style=ft.TextStyle(font_family="SF regular")),
+                        on_click=lambda _: self.parent.page.close(dialog)
+                    ),
+                    ft.FilledButton(
+                        text="Continue",
+                        expand=1,
+                        style=ft.ButtonStyle(text_style=ft.TextStyle(font_family="SF regular")),
+                        on_click=lambda _: _continue(call_back_func)
+                    ),
+                ]
+            )]
+        )
+        self.parent.page.open(dialog)
 
-    def _build_train_button(self, on_click=None) -> ft.FilledButton:
+    def _build_train_button(self, on_click: Callable | None = None) -> ft.FilledButton:
         """Create the standard 'Train and evaluate model' button.
 
         Args:
@@ -228,18 +280,18 @@ class BaseModel(ABC):
 
     # ── Training Lifecycle ─────────────────────────────────────
 
-    def _disable_training_controls(self, e: ft.ControlEvent) -> None:
+    def _disable_training_controls(self) -> None:
         """Disable UI controls at the start of training."""
-        e.control.disabled = True
+        self.train_btn.disabled = True
         self.parent.disable_model_selection()
         disable_navigation_bar(self.parent.page)
         self.parent.page.update()
 
     def _enable_training_controls(self) -> None:
         """Re-enable UI controls after training completes (use in finally block)."""
-        enable_navigation_bar(self.parent.page)
-        self.parent.enable_model_selection()
         self.train_btn.disabled = False
+        self.parent.enable_model_selection()
+        enable_navigation_bar(self.parent.page)
         self.parent.page.update()
 
     # ── Abstract Methods ───────────────────────────────────────
