@@ -1,0 +1,206 @@
+"""
+Ridge Regression Model
+
+Linear regression with L2 regularization. Adds penalty equal to
+the square of the magnitude of coefficients.
+
+Configurable hyperparameters:
+- alpha: Regularization strength
+- solver: Algorithm for computation
+- fit_intercept: Whether to calculate intercept
+"""
+
+from __future__ import annotations
+from typing import Tuple
+import flet as ft
+from dataclasses import dataclass
+from sklearn.model_selection import cross_val_score, KFold
+from sklearn.linear_model import Ridge
+
+from utils.model_utils import (
+    calculate_regression_metrics,
+    format_results_markdown,
+    create_results_dialog,
+    disable_navigation_bar,
+    enable_navigation_bar,
+)
+from .base_model import BaseModel
+
+
+@dataclass
+class RidgeModel(BaseModel):
+    """Ridge (L2) regression model."""
+
+    def _prepare_data(self):
+        return self._prepare_data_supervised()
+
+    def _validate_hyperparameters(self) -> Tuple[dict, bool]:
+        is_valid = True
+        params = {}
+
+        try:
+            alpha = float(self.alpha_field.value)
+            if alpha < 0:
+                alpha = 1.0
+                is_valid = False
+            params['alpha'] = alpha
+        except (ValueError, TypeError):
+            params['alpha'] = 1.0
+            is_valid = False
+
+        try:
+            max_iter_val = self.max_iter_field.value
+            if max_iter_val == 'None' or max_iter_val == '':
+                params['max_iter'] = None
+            else:
+                max_iter = int(max_iter_val)
+                if max_iter < 1:
+                    max_iter = 1000
+                    is_valid = False
+                params['max_iter'] = max_iter
+        except (ValueError, TypeError):
+            params['max_iter'] = None
+            is_valid = False
+
+        return params, is_valid
+
+    def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
+        """Train Ridge model and display evaluation results."""
+        try:
+            self._disable_training_controls()
+
+            data = self._prepare_data()
+            if data is None:
+                return
+
+            X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
+
+            hyperparams, params_valid = self._validate_hyperparameters()
+
+            if not params_valid:
+                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+
+            model = Ridge(
+                alpha=hyperparams['alpha'],
+                fit_intercept=self.fit_intercept_switch.value,
+                solver=self.solver_dropdown.value,
+                max_iter=hyperparams['max_iter'],
+                random_state=42,
+            )
+
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+
+            kf = KFold(
+                n_splits=int(self.parent.n_split_slider.value),
+                shuffle=self.parent.cross_val_shuffle_switch.value,
+                random_state=42 if self.parent.cross_val_shuffle_switch.value else None
+            )
+            cv_results = cross_val_score(model, X_train, y_train, cv=kf)
+
+            metrics_dict = calculate_regression_metrics(y_test, y_pred)
+            metrics_dict["CV"] = cv_results
+
+            result_text = f"**Model Intercept:** {model.intercept_:.4f}\n\n"
+            result_text += format_results_markdown(metrics_dict, task_type="regression")
+
+            evaluation_dialog = create_results_dialog(
+                self.parent.page,
+                "Ridge Regression Results",
+                result_text,
+                "Ridge"
+            )
+            self.parent.page.open(evaluation_dialog)
+
+        except Exception as e:
+            self._show_snackbar(f"Training failed: {str(e)}", bgcolor=ft.Colors.RED_500)
+
+        finally:
+            self._enable_training_controls()
+
+    def build_model_control(self) -> ft.Card:
+        """Build Flet UI card for Ridge hyperparameter configuration."""
+
+        self.alpha_field = ft.TextField(
+            label="Alpha (Regularization)",
+            value="1.0",
+            expand=1,
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            input_filter=ft.InputFilter(r'^$|^(\d+(\.\d*)?|\.\d+)$'),
+            tooltip="Regularization strength; must be a positive float. Larger values specify stronger regularization.",
+        )
+
+        self.solver_dropdown = ft.Dropdown(
+            label="Solver",
+            value="auto",
+            expand=1,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
+            options=[
+                ft.DropdownOption("auto"),
+                ft.DropdownOption("svd"),
+                ft.DropdownOption("cholesky"),
+                ft.DropdownOption("lsqr"),
+                ft.DropdownOption("sparse_cg"),
+                ft.DropdownOption("sag"),
+                ft.DropdownOption("saga"),
+                ft.DropdownOption("lbfgs"),
+            ],
+            tooltip="Solver to use. 'auto' chooses the solver automatically. 'svd' uses Singular Value Decomposition, 'sag' and 'saga' are faster for large datasets.",
+        )
+
+        self.max_iter_field = ft.TextField(
+            label="Max Iterations",
+            value="None",
+            expand=1,
+            text_style=ft.TextStyle(font_family="SF regular"),
+            label_style=ft.TextStyle(font_family="SF regular"),
+            on_click=self._field_on_click,
+            on_blur=self._field_on_blur,
+            suffix_icon=ft.IconButton(ft.Icons.RESTART_ALT, on_click=lambda _: self._reset_field_to_none(self.max_iter_field), tooltip="Reset to None"),
+            input_filter=ft.NumbersOnlyInputFilter(),
+            tooltip="Maximum number of iterations for conjugate gradient solver. For 'sparse_cg' and 'lsqr' solvers, the default value is determined by scipy.sparse.linalg. For 'sag' and 'saga' solvers, the default is 1000.",
+        )
+
+        self.fit_intercept_switch = ft.Switch(
+            label="Fit Intercept",
+            value=True,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            label_position=ft.LabelPosition.RIGHT,
+            tooltip="Whether to fit the intercept for this model.",
+        )
+
+        self._build_train_button()
+
+        return ft.Card(
+            expand=2,
+            content=ft.Container(
+                expand=True,
+                margin=ft.margin.all(15),
+                alignment=ft.alignment.center,
+                content=ft.Column(
+                    scroll=ft.ScrollMode.AUTO,
+                    horizontal_alignment=ft.CrossAxisAlignment.START,
+                    controls=[
+                        ft.Row(
+                            controls=[
+                                ft.Text("Ridge Regression",
+                                       font_family="SF thin",
+                                       size=24,
+                                       text_align="center",
+                                       expand=True)
+                            ]
+                        ),
+                        ft.Divider(),
+                        ft.Text("Hyperparameters",
+                               font_family="SF regular",
+                               weight="bold",
+                               size=14),
+                        ft.Row([self.alpha_field, self.solver_dropdown]),
+                        ft.Row([self.max_iter_field, self.fit_intercept_switch]),
+                        ft.Row([self.train_btn])
+                    ]
+                )
+            )
+        )
