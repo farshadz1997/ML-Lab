@@ -18,6 +18,7 @@ Configurable hyperparameters:
 from __future__ import annotations
 from typing import Optional, Tuple
 import flet as ft
+from functools import partial
 from dataclasses import dataclass
 from sklearn.model_selection import train_test_split, cross_val_score, KFold
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
@@ -30,7 +31,7 @@ from utils.model_utils import (
     disable_navigation_bar,
     enable_navigation_bar,
 )
-from .base_model import BaseModel
+from .base_model import BaseModel, CLASSIFICATION_THRESHOLD
 
 
 @dataclass
@@ -101,17 +102,18 @@ class KNNModel(BaseModel):
 
         return params, is_valid
 
-    def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
+    def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train KNN model and display evaluation results."""
         try:
-            e.control.disabled = True
-            self.parent.disable_model_selection()
-            disable_navigation_bar(self.parent.page)
-            self.parent.page.update()
+            self._disable_training_controls()
 
             data = self._prepare_data()
             if data is None:
-                enable_navigation_bar(self.parent.page)
+                return
+            
+            ratio = self._target_to_total_rows_ratio()
+            if ratio > CLASSIFICATION_THRESHOLD and self._get_task_type() == "Classification" and not force:
+                self._show_wrong_task_type_dialog(ratio, 'Classification', partial(self._train_and_evaluate_model, e=e, force=True))
                 return
 
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
@@ -170,17 +172,13 @@ class KNNModel(BaseModel):
                 "KNN"
             )
             self.parent.page.open(evaluation_dialog)
-            enable_navigation_bar(self.parent.page)
 
         except Exception as e:
-            enable_navigation_bar(self.parent.page)
             self._show_snackbar(f"Training failed: {str(e)}", bgcolor=ft.Colors.RED_500)
 
         finally:
-            self.parent.enable_model_selection()
-            self.train_btn.disabled = False
-            self.parent.page.update()
-    
+            self._enable_training_controls()
+                
     def _algorithm_change(self, e: ft.ControlEvent) -> None:
         """Show/hide leaf size field based on selected algorithm."""
         selected_algorithm = self.algorithm_dropdown.value

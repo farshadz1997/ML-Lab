@@ -94,14 +94,10 @@ class MLPModel(BaseModel):
     def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train MLP model and display evaluation results."""
         try:
-            self.train_btn.disabled = True
-            self.parent.disable_model_selection()
-            disable_navigation_bar(self.parent.page)
-            self.parent.page.update()
+            self._disable_training_controls()
 
             data = self._prepare_data()
             if data is None:
-                enable_navigation_bar(self.parent.page)
                 return
 
             ratio = self._target_to_total_rows_ratio()
@@ -172,16 +168,12 @@ class MLPModel(BaseModel):
                 "MLP"
             )
             self.parent.page.open(evaluation_dialog)
-            enable_navigation_bar(self.parent.page)
 
         except Exception as e:
-            enable_navigation_bar(self.parent.page)
             self._show_snackbar(f"Training failed: {str(e)}", bgcolor=ft.Colors.RED_500)
 
         finally:
-            self.parent.enable_model_selection()
-            self.train_btn.disabled = False
-            self.parent.page.update()
+            self._enable_training_controls()
 
     def build_model_control(self) -> ft.Card:
         """Build Flet UI card for MLP hyperparameter configuration."""

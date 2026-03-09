@@ -39,14 +39,10 @@ class ElbowLocatorModel(BaseModel):
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train elbow locator model and display results with optimal cluster recommendation."""
         try:
-            e.control.disabled = True
-            self.parent.disable_model_selection()
-            disable_navigation_bar(self.parent.page)
-            self.parent.page.update()
+            self._disable_training_controls()
             
             data = self._prepare_data()
             if data is None:
-                enable_navigation_bar(self.parent.page)
                 return
             
             X_scaled, feature_cols = data
@@ -57,9 +53,8 @@ class ElbowLocatorModel(BaseModel):
             direction = self.direction_dropdown.value
             
             # Validate parameters
-            if max_clusters < 2 or max_clusters > 20:
-                self._show_snackbar("Max clusters must be between 2 and 20", bgcolor=ft.Colors.RED_500)
-                enable_navigation_bar(self.parent.page)
+            if max_clusters < 2:
+                self._show_snackbar("Max clusters must be greater than 1", bgcolor=ft.Colors.RED_500)
                 return
             
             # Compute inertias for range of clusters
@@ -126,17 +121,13 @@ class ElbowLocatorModel(BaseModel):
                 "Elbow Locator"
             )
             self.parent.page.open(evaluation_dialog)
-            enable_navigation_bar(self.parent.page)
         
         except Exception as e:
-            enable_navigation_bar(self.parent.page)
             self._show_snackbar(f"Training failed: {str(e)}", bgcolor=ft.Colors.RED_500)
         
         finally:
-            self.parent.enable_model_selection()
-            self.train_btn.disabled = False
-            self.parent.page.update()
-    
+            self._enable_training_controls()
+                
     def build_model_control(self) -> ft.Card:
         """Build Flet UI card for Elbow Locator hyperparameter configuration."""
         
