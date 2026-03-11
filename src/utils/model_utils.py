@@ -450,6 +450,8 @@ def _format_classification_markdown(metrics: Dict[str, Any]) -> str:
             md += "|---|---|---|\n"
             md += f"| **Actual Negative** | {cm[0,0]} | {cm[0,1]} |\n"
             md += f"| **Actual Positive** | {cm[1,0]} | {cm[1,1]} |\n"
+        elif n_classes > 10:
+            md += f"Shape of the confusion matrix is too big **(shape:{cm.shape})** to demonstrate it here.\n"
         else:
             # Multiclass - show matrix
             md += "| Predicted \\ Actual |"
