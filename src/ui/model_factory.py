@@ -2,8 +2,9 @@ from __future__ import annotations
 import flet as ft
 import numpy as np
 from typing import Literal, TYPE_CHECKING, Type, Dict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from .models import (
+    BaseModel,
     LinearRegressionModel,
     LogisticRegressionModel,
     RandomForestModel,
@@ -20,30 +21,80 @@ from .models import (
     MeanShiftModel,
     AffinityPropagationModel,
     ElbowLocatorModel,
+    GaussianNBModel,
+    MultinomialNBModel,
+    ComplementNBModel,
+    BernoulliNBModel,
+    CategoricalNBModel,
+    AdaBoostModel,
+    ExtraTreesModel,
+    RidgeModel,
+    LassoModel,
+    ElasticNetModel,
+    SGDModel,
+    MLPModel,
+    XGBoostModel,
+    LightGBMModel,
+    CatBoostModel,
+    OPTICSModel,
+    SpectralClusteringModel,
+    BirchModel,
 )
 
 if TYPE_CHECKING:
     from .layout import AppLayout
 
 MODEL_TYPE = Literal["Classification", "Regression"]
-CLASSIFIER = Literal["logistic_regression", "random_forest", "gradient_boosting", "svm", "knn", "decision_tree"]
-REGRESSOR = Literal["linear_regression", "random_forest", "gradient_boosting", "svm", "decision_tree"]
-CLUSTERER = Literal["kmeans", "minibatch_kmeans", "hierarchical", "dbscan", "hdbscan", "gaussian_mixture", "mean_shift", "affinity_propagation", "elbow_locator"]
-MODELS = Literal["linear_regression", "logistic_regression", "random_forest", "gradient_boosting", "svm", "knn", "decision_tree", "kmeans", "minibatch_kmeans", "hierarchical", "dbscan", "hdbscan", "gaussian_mixture", "mean_shift", "affinity_propagation", "elbow_locator"]
+CLASSIFIER = Literal[
+    "logistic_regression", "random_forest", "gradient_boosting", "svm", "knn", "decision_tree",
+    "gaussian_naive_bayes", "multinomial_naive_bayes", "complement_naive_bayes", "bernoulli_naive_bayes", "categorical_naive_bayes",
+    "adaboost", "extra_trees", "sgd", "mlp", "xgboost", "lightgbm", "catboost",
+]
+REGRESSOR = Literal[
+    "linear_regression", "random_forest", "gradient_boosting", "svm", "knn", "decision_tree",
+    "ridge", "lasso", "elastic_net", "adaboost", "extra_trees", "sgd", "mlp", "xgboost", "lightgbm", "catboost",
+]
+CLUSTERER = Literal[
+    "kmeans", "minibatch_kmeans", "hierarchical", "dbscan", "hdbscan", "gaussian_mixture",
+    "mean_shift", "affinity_propagation", "elbow_locator", "optics", "spectral_clustering", "birch",
+]
+MODELS = Literal[
+    "linear_regression", "logistic_regression", "random_forest", "gradient_boosting", "svm", "knn", "decision_tree",
+    "gaussian_naive_bayes", "multinomial_naive_bayes", "complement_naive_bayes", "bernoulli_naive_bayes", "categorical_naive_bayes",
+    "adaboost", "extra_trees", "ridge", "lasso", "elastic_net", "sgd", "mlp",
+    "xgboost", "lightgbm", "catboost",
+    "kmeans", "minibatch_kmeans", "hierarchical", "dbscan", "hdbscan", "gaussian_mixture",
+    "mean_shift", "affinity_propagation", "elbow_locator", "optics", "spectral_clustering", "birch",
+]
 
 # Model registry for dynamic instantiation (Factory Pattern)
 # Maps model name to model class; populated as new models are implemented
-MODEL_REGISTRY: Dict[str, Type] = {
+MODEL_REGISTRY: Dict[str, BaseModel] = {
+    # Regression-only models
     'linear_regression': LinearRegressionModel,
-    # Classification models
+    'ridge': RidgeModel,
+    'lasso': LassoModel,
+    'elastic_net': ElasticNetModel,
+    # Classification-only models
     'logistic_regression': LogisticRegressionModel,
+    'gaussian_naive_bayes': GaussianNBModel,
+    'multinomial_naive_bayes': MultinomialNBModel,
+    'complement_naive_bayes': ComplementNBModel,
+    'bernoulli_naive_bayes': BernoulliNBModel,
+    'categorical_naive_bayes': CategoricalNBModel,
+    # Classification + Regression models
     'random_forest': RandomForestModel,
     'gradient_boosting': GradientBoostingModel,
+    'adaboost': AdaBoostModel,
+    'extra_trees': ExtraTreesModel,
+    'xgboost': XGBoostModel,
+    'lightgbm': LightGBMModel,
+    'catboost': CatBoostModel,
     'svm': SVMModel,
     'knn': KNNModel,
     'decision_tree': DecisionTreeModel,
-    # Regression models
-    'decision_tree': DecisionTreeModel,
+    'sgd': SGDModel,
+    'mlp': MLPModel,
     # Clustering models
     'kmeans': KMeansModel,
     'minibatch_kmeans': MiniBatchKMeansModel,
@@ -54,22 +105,48 @@ MODEL_REGISTRY: Dict[str, Type] = {
     'mean_shift': MeanShiftModel,
     'affinity_propagation': AffinityPropagationModel,
     'elbow_locator': ElbowLocatorModel,
+    'optics': OPTICSModel,
+    'spectral_clustering': SpectralClusteringModel,
+    'birch': BirchModel,
 }
 
 CLASSIFICATION_MODELS_OPTIONS = [
-    ft.DropdownOption("logistic_regression", text="Logistic regression"),
-    ft.DropdownOption("random_forest", text="Random forest"),
-    ft.DropdownOption("gradient_boosting", text="Gradient boosting"),
-    ft.DropdownOption("svm", text="SVM"),
+    ft.DropdownOption("logistic_regression", text="Logistic Regression"),
+    ft.DropdownOption("gaussian_naive_bayes", text="Gaussian Naive Bayes"),
+    ft.DropdownOption("multinomial_naive_bayes", text="Multinomial Naive Bayes"),
+    ft.DropdownOption("complement_naive_bayes", text="Complement Naive Bayes"),
+    ft.DropdownOption("bernoulli_naive_bayes", text="Bernoulli Naive Bayes"),
+    ft.DropdownOption("categorical_naive_bayes", text="Categorical Naive Bayes"),
     ft.DropdownOption("knn", text="KNN"),
     ft.DropdownOption("decision_tree", text="Decision Tree"),
+    ft.DropdownOption("random_forest", text="Random Forest"),
+    ft.DropdownOption("extra_trees", text="Extra Trees"),
+    ft.DropdownOption("gradient_boosting", text="Gradient Boosting"),
+    ft.DropdownOption("adaboost", text="AdaBoost"),
+    ft.DropdownOption("xgboost", text="XGBoost"),
+    ft.DropdownOption("lightgbm", text="LightGBM"),
+    ft.DropdownOption("catboost", text="CatBoost"),
+    ft.DropdownOption("svm", text="SVM"),
+    ft.DropdownOption("sgd", text="SGD"),
+    ft.DropdownOption("mlp", text="MLP (Neural Network)"),
 ]
 REGRESSION_MODELS_OPTIONS = [
-    ft.DropdownOption("linear_regression", text="Linear regression"),
-    ft.DropdownOption("random_forest", text="Random forest"),
-    ft.DropdownOption("gradient_boosting", text="Gradient boosting"),
-    ft.DropdownOption("svm", text="SVM"),
+    ft.DropdownOption("linear_regression", text="Linear Regression"),
+    ft.DropdownOption("ridge", text="Ridge Regression"),
+    ft.DropdownOption("lasso", text="Lasso Regression"),
+    ft.DropdownOption("elastic_net", text="ElasticNet"),
+    ft.DropdownOption("knn", text="KNN"),
     ft.DropdownOption("decision_tree", text="Decision Tree"),
+    ft.DropdownOption("random_forest", text="Random Forest"),
+    ft.DropdownOption("extra_trees", text="Extra Trees"),
+    ft.DropdownOption("gradient_boosting", text="Gradient Boosting"),
+    ft.DropdownOption("adaboost", text="AdaBoost"),
+    ft.DropdownOption("xgboost", text="XGBoost"),
+    ft.DropdownOption("lightgbm", text="LightGBM"),
+    ft.DropdownOption("catboost", text="CatBoost"),
+    ft.DropdownOption("svm", text="SVM"),
+    ft.DropdownOption("sgd", text="SGD"),
+    ft.DropdownOption("mlp", text="MLP (Neural Network)"),
 ]
 CLUSTERING_MODELS_OPTIONS = [
     ft.DropdownOption("kmeans", text="K-Means"),
@@ -81,14 +158,34 @@ CLUSTERING_MODELS_OPTIONS = [
     ft.DropdownOption("gaussian_mixture", text="Gaussian Mixture"),
     ft.DropdownOption("mean_shift", text="Mean Shift"),
     ft.DropdownOption("affinity_propagation", text="Affinity Propagation"),
+    ft.DropdownOption("optics", text="OPTICS"),
+    ft.DropdownOption("spectral_clustering", text="Spectral Clustering"),
+    ft.DropdownOption("birch", text="Birch"),
 ]
 
 @dataclass
 class ModelFactory:
     parent: AppLayout
     page: ft.Page
-    column: ft.Column | None = None
+    column: ft.Column | None = field(init=False, default=None)
+    _config_card: ft.Card | None = field(init=False, default=None)
     
+    @property
+    def config_card(self) -> ft.Card:
+        return self._config_card
+    
+    @config_card.setter
+    def config_card(self, card):
+        if self.column is None:
+            self._config_card = card
+            return
+        # Remove previous config card if present
+        if self._config_card in self.column.controls[0].controls:
+            self.column.controls[0].controls.remove(self._config_card)
+        # Add new card to controls
+        self.column.controls[0].controls.append(card)
+        self._config_card = card
+        
     def _learning_type_on_change(self, e: ft.ControlEvent) -> None:
         learning_type = e.control.value
         if learning_type == "Supervised":
@@ -144,11 +241,6 @@ class ModelFactory:
             model_name: Name of selected model (e.g., "logistic_regression")
         """
         try:
-            # Remove previous config card if present
-            if (len(self.column.controls) > 2 and 
-                self.config_card in self.column.controls[2].controls):
-                self.column.controls[2].controls.remove(self.config_card)
-            
             # Get model class from registry
             model_class = MODEL_REGISTRY.get(model_name)
             
@@ -183,10 +275,6 @@ class ModelFactory:
                 # Instantiate model and get configuration card
                 model_instance = model_class(self, self.parent.dataset.df)
                 self.config_card = model_instance.build_model_control()
-            
-            # Add new config card to column
-            if len(self.column.controls) > 2:
-                self.column.controls[2].controls.append(self.config_card)
             
             self.page.update()
         
@@ -304,8 +392,6 @@ class ModelFactory:
             horizontal_alignment=ft.CrossAxisAlignment.START,
             alignment=ft.MainAxisAlignment.START,
             controls=[
-                ft.Row([ft.Text("Model Factory", expand=False, size=30, font_family="SF thin", text_align="center")], alignment=ft.MainAxisAlignment.CENTER),
-                ft.Divider(),
                 ft.Row(
                     alignment=ft.MainAxisAlignment.START,
                     vertical_alignment=ft.CrossAxisAlignment.START,
@@ -345,7 +431,7 @@ class ModelFactory:
                                             ]
                                         ),
                                         ft.Divider(),
-                                        ft.Row([ft.Text("Cross Validation", font_family="SF regular", weight="bold", size=14),]),
+                                        ft.Row([ft.Text("Cross Validation", font_family="SF regular", weight="bold", size=14)]),
                                         ft.Row(
                                             controls=[
                                                 ft.Text("n-split", font_family="SF regular", size=14),
