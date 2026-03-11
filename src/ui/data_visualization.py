@@ -18,7 +18,27 @@ class DataVisualization:
     parent: AppLayout
     page: ft.Page
     column: ft.Column | None = field(default=None, init=False)
+    _config_card: ft.Card | None = field(default=None, init=False)
     
+    @property
+    def config_card(self) -> ft.Card:
+        return self._config_card
+    
+    @config_card.setter
+    def config_card(self, card):
+        if self.column is None:
+            self._config_card = card
+            return
+        # Remove previous config card if present
+        if self._config_card in self.column.controls[0].controls:
+            self.column.controls[0].controls.remove(self._config_card)
+        # Remove chart card
+        if self.chart_card in self.column.controls:
+            self.column.controls.remove(self.chart_card)
+        # Add new card to controls
+        self.column.controls[0].controls.append(card)
+        self._config_card = card
+        
     def _on_viz_type_change(self, e: ft.ControlEvent) -> None:
         """Handle visualization type change"""
         viz_type = e.control.value
@@ -46,83 +66,48 @@ class DataVisualization:
     
     def _update_viz_options(self, viz_type: VIZ_TYPE) -> None:
         """Update available options based on visualization type"""
-        if self.column and self.parent.dataset:
-            if self.config_card in self.column.controls[2].controls:
-                self.column.controls[2].controls.remove(self.config_card)
-            if self.chart_card in self.column.controls:
-                self.column.controls.remove(self.chart_card)
         generate_chart_button = ft.FilledButton(
             text="Generate Visualization",
             icon=ft.Icons.SHOW_CHART,
             on_click=None,
+            expand=1,
             style=ft.ButtonStyle(
                 shape=ft.RoundedRectangleBorder(radius=8),
                 elevation=5,
                 text_style=ft.TextStyle(font_family="SF regular"),
             )
         )
-        if viz_type == "Histogram":
-            chart_config = HistogramChart(self.parent.dataset.df, self, self.page)
-            self.config_card = chart_config.build_chart_settings_control()
-            generate_chart_button.on_click = lambda e: self._add_chart_control(e, chart_config.build_chart_control)
-            self.config_card.content.content.controls.append(
-                ft.Row(
-                    alignment=ft.MainAxisAlignment.CENTER,
-                    controls=[generate_chart_button]
-                )
+        match viz_type:
+            case "Histogram":
+                chart_config = HistogramChart(self.parent.dataset.df, self, self.page)
+                config_card = chart_config.build_chart_settings_control()
+            case "Box":
+                chart_config = BoxPlotChart(self.parent.dataset.df, self, self.page)
+                config_card = chart_config.build_chart_settings_control()
+            case "Scatter":
+                chart_config = ScatterChart(self.parent.dataset.df, self, self.page)
+                config_card = chart_config.build_chart_settings_control()
+            case "Heatmap":
+                chart_config = HeatmapChart(self.parent.dataset.df, self, self.page)
+                config_card = chart_config.build_chart_settings_control()
+            case "Pie":
+                chart_config = PieChart(self.parent.dataset.df, self, self.page)
+                config_card = chart_config.build_chart_settings_control()
+            case "Bar":
+                chart_config = BarChart(self.parent.dataset.df, self, self.page)
+                config_card = chart_config.build_chart_settings_control()
+            case _:
+                chart_config = HistogramChart(self.parent.dataset.df, self, self.page)
+                config_card = chart_config.build_chart_settings_control()
+                
+        generate_chart_button.on_click = lambda e: self._add_chart_control(e, chart_config.build_chart_control)
+        config_card.content.content.controls.append(
+            ft.Row(
+                alignment=ft.MainAxisAlignment.CENTER,
+                controls=[generate_chart_button]
             )
-        elif viz_type == "Box":
-            chart_config = BoxPlotChart(self.parent.dataset.df, self, self.page)
-            self.config_card = chart_config.build_chart_settings_control()
-            generate_chart_button.on_click = lambda e: self._add_chart_control(e, chart_config.build_chart_control)
-            self.config_card.content.content.controls.append(
-                ft.Row(
-                    alignment=ft.MainAxisAlignment.CENTER,
-                    controls=[generate_chart_button]
-                )
-            )
-        elif viz_type == "Scatter":
-            chart_config = ScatterChart(self.parent.dataset.df, self, self.page)
-            self.config_card = chart_config.build_chart_settings_control()
-            generate_chart_button.on_click = lambda e: self._add_chart_control(e, chart_config.build_chart_control)
-            self.config_card.content.content.controls.append(
-                ft.Row(
-                    alignment=ft.MainAxisAlignment.CENTER,
-                    controls=[generate_chart_button]
-                )
-            )
-        elif viz_type == "Heatmap":
-            chart_config = HeatmapChart(self.parent.dataset.df, self, self.page)
-            self.config_card = chart_config.build_chart_settings_control()
-            generate_chart_button.on_click = lambda e: self._add_chart_control(e, chart_config.build_chart_control)
-            self.config_card.content.content.controls.append(
-                ft.Row(
-                    alignment=ft.MainAxisAlignment.CENTER,
-                    controls=[generate_chart_button]
-                )
-            )
-        elif viz_type == "Pie":
-            chart_config = PieChart(self.parent.dataset.df, self, self.page)
-            self.config_card = chart_config.build_chart_settings_control()
-            generate_chart_button.on_click = lambda e: self._add_chart_control(e, chart_config.build_chart_control)
-            self.config_card.content.content.controls.append(
-                ft.Row(
-                    alignment=ft.MainAxisAlignment.CENTER,
-                    controls=[generate_chart_button]
-                )
-            )
-        elif viz_type == "Bar":
-            chart_config = BarChart(self.parent.dataset.df, self, self.page)
-            self.config_card = chart_config.build_chart_settings_control()
-            generate_chart_button.on_click = lambda e: self._add_chart_control(e, chart_config.build_chart_control)
-            self.config_card.content.content.controls.append(
-                ft.Row(
-                    alignment=ft.MainAxisAlignment.CENTER,
-                    controls=[generate_chart_button]
-                )
-            )
-        
-        self.column.controls[2].controls.append(self.config_card)
+        )
+        self.config_card = config_card
         self.page.update()
     
     def _chart_size_on_blur(self, e: ft.ControlEvent) -> None:
@@ -282,6 +267,7 @@ class DataVisualization:
             text="Generate Visualization",
             icon=ft.Icons.SHOW_CHART,
             on_click=None,
+            expand=1,
             style=ft.ButtonStyle(
                 shape=ft.RoundedRectangleBorder(radius=8),
                 elevation=5,
@@ -302,8 +288,6 @@ class DataVisualization:
             horizontal_alignment=ft.CrossAxisAlignment.START,
             alignment=ft.MainAxisAlignment.START,
             controls=[
-                ft.Row([ft.Text("Data Visualization & Analysis", expand=True, size=30, font_family="SF thin", text_align="center")]),
-                ft.Divider(),
                 ft.Row(
                     vertical_alignment=ft.CrossAxisAlignment.START,
                     controls=[
@@ -356,7 +340,6 @@ class DataVisualization:
                         self.config_card,
                     ]
                 ),
-                # self.config_card,
                 self.chart_card
             ]
         )

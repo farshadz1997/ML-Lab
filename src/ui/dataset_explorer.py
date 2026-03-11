@@ -1312,8 +1312,6 @@ class DatasetExplorer:
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             alignment=ft.MainAxisAlignment.CENTER,
             controls=[
-                ft.Text("Dataset explorer", font_family="SF thin", size=30, expand=True, text_align="center"),
-                ft.Divider(),
                 ft.Card(
                     content=ft.Container(
                         margin=ft.margin.all(15),
