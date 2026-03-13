@@ -8,15 +8,18 @@ authors = [
     { name = "Farshad Zargari", email = "farshadzargary1997@gmail.com" }
 ]
 dependencies = [
+  "catboost>=1.2.10",
   "category-encoders>=2.6.4",
   "flet[all]==0.28.3",
   "kneed>=0.8.5",
+  "lightgbm>=4.6.0",
   "matplotlib>=3.9.4",
   "pandas>=2.3.3",
   "pytest>=8.4.2",
   "scikit-learn>=1.6.1",
   "seaborn>=0.13.2",
   "setuptools<=81.0",
+  "xgboost>=3.2.0",
   "ydata-profiling>=4.17.0",
 ]
 
