@@ -1,6 +1,6 @@
 import flet as ft
 from dataclasses import dataclass
-import warnings, webbrowser
+import warnings, webbrowser, contextlib
 from .dataset_explorer import DatasetExplorer
 from .data_visualization import DataVisualization
 from .model_factory import ModelFactory
@@ -68,14 +68,15 @@ class AppLayout:
         warnings.showwarning = self.warning_handler
     
     def warning_handler(self, message, category, filename, lineno, file=None, line=None):
-        if "Matplotlib" in str(message): # Ignore matplotlib warnings
-            return
-        self.page.open(ft.SnackBar(
-            ft.Text(f"Warning: {message}", font_family="SF regular"),
-            bgcolor=ft.Colors.AMBER_ACCENT_400,
-            action="Alright!",
-            duration=20000
-        ))
+        with contextlib.suppress(AssertionError, Exception):
+            if "Matplotlib" in str(message): # Ignore matplotlib warnings
+                return
+            self.page.open(ft.SnackBar(
+                ft.Text(f"Warning: {message}", font_family="SF regular"),
+                bgcolor=ft.Colors.AMBER_ACCENT_400,
+                action="Alright!",
+                duration=20000
+            ))
 
     def toggle_theme_mode(self, e: ft.ControlEvent) -> None:
         self.page.theme_mode = "dark" if self.page.theme_mode == "light" else "light"
