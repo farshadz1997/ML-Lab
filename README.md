@@ -21,9 +21,9 @@ A comprehensive desktop application for exploring datasets, training machine lea
   - Real-time chart generation
 
 - **Machine Learning Models**
-  - **Classification Models**: Logistic Regression, Decision Tree, Random Forest, SVM, KNN, Gradient Boosting
-  - **Regression Models**: Linear Regression, Decision Tree Regressor, Random Forest
-  - **Clustering Models**: K-Means, DBSCAN, Hierarchical Clustering, Gaussian Mixture Models, Mean Shift, HDBSCAN, Affinity Propagation, MiniBatch K-Means
+  - **Classification Models**: Logistic Regression, Decision Tree, Random Forest, SVM, KNN, Gradient Boosting, Naive Bayes models, Extra Tress, Ada Boost XGBoost, LightGBM, CatBoost, SGD, MLP (Neural Network)
+  - **Regression Models**: Linear Regression, Decision Tree Regressor, Random Forest, Ridge Regression, Lasso Regression, ElasticNet, KNN, Gradient Boosting, Extra Trees, AdaBoost, XGBoost, LigtGBM, CatBoost, SVM, SGD, MLP (Neural Network)
+  - **Clustering Models**: K-Means, DBSCAN, Hierarchical Clustering, Gaussian Mixture Models, Mean Shift, HDBSCAN, Affinity Propagation, MiniBatch K-Means, OPTICS, Spectral Clustering, Birch
   - **Helper Tools**: Elbow locator for optimal cluster selection
 
 - **Model Configuration**
@@ -31,11 +31,12 @@ A comprehensive desktop application for exploring datasets, training machine lea
   - Multiple scaling options: Standard Scaler, MinMax Scaler, None
   - Configurable train/test split for supervised learning
   - Automatic feature selection
+  - Test new data on trained model
 
 - **Model Evaluation**
-  - Classification metrics: Accuracy, Precision, Recall, F1-Score, Confusion Matrix
-  - Regression metrics: R² Score, Adjusted R² Score, Mean Squared Error, Mean Absolute Error
-  - Clustering metrics: Silhouette Score, Davies-Bouldin Index, Calinski-Harabasz Index
+  - **Classification metrics:** Accuracy, Precision, Recall, F1-Score, Confusion Matrix
+  - **Regression metrics:** R² Score, Adjusted R² Score, Mean Squared Error, Mean Absolute Error
+  - **Clustering metrics:** Silhouette Score, Davies-Bouldin Index, Calinski-Harabasz Index
   - Detailed results with copy functionality
 
 - **Data Profiling**
