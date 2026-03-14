@@ -22,6 +22,13 @@ class LinearRegressionModel(BaseModel):
         """Prepare data for training."""
         return self._prepare_data_supervised()
     
+    def _create_model(self) -> LinearRegression:
+        model = LinearRegression(
+            fit_intercept=self.fit_intercept_switch.value,
+            positive=self.positive_switch.value
+        )
+        return model
+        
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train linear regression model and display evaluation results."""
         try:
@@ -34,11 +41,7 @@ class LinearRegressionModel(BaseModel):
             
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
             
-            # Create and train model with current hyperparameters
-            model = LinearRegression(
-                fit_intercept=self.fit_intercept_switch.value,
-                positive=self.positive_switch.value
-            )
+            model = self._create_model()
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
             
@@ -89,6 +92,7 @@ class LinearRegressionModel(BaseModel):
             value=False,
         )
         self._build_train_button()
+        self._build_predict_new_data_button()
         return ft.Card(
             expand=2,
             content=ft.Container(
@@ -104,7 +108,7 @@ class LinearRegressionModel(BaseModel):
                         ),
                         ft.Divider(),
                         ft.Row([self.fit_intercept_switch, self.positive_switch], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

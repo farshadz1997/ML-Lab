@@ -36,7 +36,7 @@ class TestPrepareDataForTraining:
             "target": [0, 0, 1, 1, 0, 1],
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.33, random_state=42)
         )
         
@@ -62,7 +62,7 @@ class TestPrepareDataForTraining:
             "target": [0, 1, 0, 1],
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.5, random_state=42)
         )
         
@@ -79,7 +79,7 @@ class TestPrepareDataForTraining:
             "target": [0, 1, 0, 1, 0, 1],
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.33, random_state=42)
         )
         
@@ -105,7 +105,7 @@ class TestPrepareDataForTraining:
             "target": [0, 1, 0, 1, 0, 1],
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.33, random_state=42)
         )
         
@@ -125,7 +125,7 @@ class TestPrepareDataForTraining:
             "target": [0, 1] * 550,
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.2, random_state=42)
         )
         
@@ -141,7 +141,7 @@ class TestPrepareDataForTraining:
         })
         
         # Normal case should work
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(
                 df,
                 "target",
@@ -167,7 +167,7 @@ class TestNoDataLeakage:
         })
         
         # Prepare data - should work (green will be in test)
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(
                 df,
                 "target",
@@ -191,7 +191,7 @@ class TestNoDataLeakage:
             "target": [0, 1] * 50,
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.3, random_state=42)
         )
         
@@ -248,7 +248,7 @@ class TestMultipleCategoricalColumns:
             "target": [i % 2 for i in range(50)],
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.3, random_state=42)
         )
         
@@ -279,7 +279,7 @@ class TestMixedDataTypes:
             "target": [0, 1] * 20,
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.3, random_state=42)
         )
         
@@ -299,7 +299,7 @@ class TestMixedDataTypes:
         df.loc[::6, "color"] = None  # NaN in every 6th row
         
         # Should handle NaN without crashing
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.3, random_state=42)
         )
         
@@ -318,7 +318,7 @@ class TestTrainedModelPerformance:
             "target": [0, 1] * 10,
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.3, random_state=42)
         )
         
@@ -343,7 +343,7 @@ class TestTrainedModelPerformance:
             "target": [0, 1, 0] * 10,
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.3, random_state=42)
         )
         

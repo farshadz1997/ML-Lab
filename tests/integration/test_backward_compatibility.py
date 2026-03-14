@@ -43,7 +43,7 @@ class TestNumericOnlyData:
             "target": [0, 1, 0, 1, 0, 1],
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.33, random_state=42)
         )
         
@@ -67,7 +67,7 @@ class TestNumericOnlyData:
             "target": [0, 1, 0, 1, 0, 1],
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.33, random_state=42)
         )
         
@@ -88,7 +88,7 @@ class TestNumericOnlyData:
             "target": [0, 1, 0, 1, 0, 1],
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.33, random_state=42)
         )
         
@@ -109,7 +109,7 @@ class TestNumericOnlyData:
             "target": [1.5, 2.5, 3.5, 4.5, 5.5, 6.5],
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.33, random_state=42)
         )
         
@@ -134,7 +134,7 @@ class TestDataIntegrity:
             "target": [0, 1, 0, 1],
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.5, random_state=42)
         )
         
@@ -155,7 +155,7 @@ class TestDataIntegrity:
             "target": [0, 1, 0, 1],
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.5, random_state=42)
         )
         
@@ -176,7 +176,7 @@ class TestMixedDataBackwardCompatibility:
         })
         
         # Should work - target is separate from features
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.33, random_state=42)
         )
         
@@ -199,7 +199,7 @@ class TestLargeNumericDatasets:
             "target": np.random.randint(0, 2, 1000),
         })
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.2, random_state=42)
         )
         
@@ -220,7 +220,7 @@ class TestLargeNumericDatasets:
         })
         df["target"] = np.random.randint(0, 2, n_samples)
         
-        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, warnings = (
+        X_train, X_test, y_train, y_test, cat_cols, num_cols, encoders, scaler, warnings = (
             prepare_data_for_training(df, "target", test_size=0.2, random_state=42)
         )
         

@@ -71,6 +71,18 @@ class BernoulliNBModel(BaseModel):
         
         return params, is_valid
 
+    def _create_model(self) -> BernoulliNB:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        model = BernoulliNB(
+            alpha=hyperparams['alpha'],
+            force_alpha=self.force_alpha.value,
+            fit_prior=self.fit_prior.value,
+            binarize=hyperparams['binarize'],
+        )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train Naive Bayes model and display evaluation results."""
         try:
@@ -87,17 +99,7 @@ class BernoulliNBModel(BaseModel):
             
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
 
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            model = BernoulliNB(
-                alpha=hyperparams['alpha'],
-                force_alpha=self.force_alpha.value,
-                fit_prior=self.fit_prior.value,
-                binarize=hyperparams['binarize'],
-            )
+            model = self._create_model()
 
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
@@ -186,7 +188,8 @@ class BernoulliNBModel(BaseModel):
         )
         
         self._build_train_button()
-
+        self._build_predict_new_data_button()
+        
         return ft.Card(
             expand=2,
             content=ft.Container(
@@ -213,7 +216,7 @@ class BernoulliNBModel(BaseModel):
                                size=14),
                         ft.Row([self.alpha, self.binarize]),
                         ft.Row([self.force_alpha, self.fit_prior], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

@@ -35,6 +35,38 @@ class DBSCANModel(BaseModel):
         """Prepare data for clustering."""
         return self._prepare_data_clustering()
     
+    def _create_model(self) -> DBSCAN:
+        hyperparams = {
+            'eps': float(self.eps_field.value),
+            'min_samples': int(self.min_samples_field.value),
+            'leaf_size': int(self.leaf_size_field.value),
+            'p': float(self.p_field.value.strip()) if self.p_field.value.strip().lower() != "none" else "none"
+        }
+        validation_rules = {
+            'eps': {'type': float, 'min': 0.01},
+            'min_samples': {'type': int},
+            'leaf_size': {'type': int, 'min': 1},
+            'p': {'type': float if isinstance(hyperparams['p'], float) else str}
+        }
+        is_valid, error_msg = validate_hyperparameters(hyperparams, 'dbscan', validation_rules)
+        if not is_valid:
+            raise Exception(f"Hyperparameter error: {error_msg}")
+        if self.p_field.value.strip().lower() == "none":
+            p_value = None
+        else:
+            p_value = float(self.p_field.value.strip())
+        if self.metric_dropdown.value == "minkowski" and p_value is None:
+            p_value = 2
+        model = DBSCAN(
+            eps=float(self.eps_field.value),
+            min_samples=int(self.min_samples_field.value),
+            metric=self.metric_dropdown.value,
+            algorithm=self.algorithm_dropdown.value,
+            leaf_size=int(self.leaf_size_field.value),
+            p=p_value
+        )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train DBSCAN model and display evaluation results."""
         try:
@@ -46,44 +78,7 @@ class DBSCANModel(BaseModel):
             
             X_scaled, feature_cols = data
             
-            # Validate hyperparameters
-            hyperparams = {
-                'eps': float(self.eps_field.value),
-                'min_samples': int(self.min_samples_field.value),
-                'leaf_size': int(self.leaf_size_field.value),
-                'p': float(self.p_field.value.strip()) if self.p_field.value.strip().lower() != "none" else "none"
-            }
-            
-            validation_rules = {
-                'eps': {'type': float, 'min': 0.01},
-                'min_samples': {'type': int},
-                'leaf_size': {'type': int, 'min': 1},
-                'p': {'type': float if isinstance(hyperparams['p'], float) else str}
-            }
-            
-            is_valid, error_msg = validate_hyperparameters(hyperparams, 'dbscan', validation_rules)
-            if not is_valid:
-                self._show_snackbar(f"Hyperparameter error: {error_msg}", bgcolor=ft.Colors.RED_500)
-                return
-            
-            if self.p_field.value.strip().lower() == "none":
-                p_value = None
-            else:
-                p_value = float(self.p_field.value.strip())
-            
-            if self.metric_dropdown.value == "minkowski" and p_value is None:
-                p_value = 2
-            
-            # Train DBSCAN
-            model = DBSCAN(
-                eps=float(self.eps_field.value),
-                min_samples=int(self.min_samples_field.value),
-                metric=self.metric_dropdown.value,
-                algorithm=self.algorithm_dropdown.value,
-                leaf_size=int(self.leaf_size_field.value),
-                p=p_value
-                # p=None if self.metric_dropdown.value != "minkowski" else 2,
-            )
+            model = self._create_model()
             labels = model.fit_predict(X_scaled)
             
             # Calculate metrics
@@ -211,6 +206,7 @@ class DBSCANModel(BaseModel):
         )
 
         self._build_train_button()
+        self._build_predict_new_data_button()
 
         return ft.Card(
             expand=2,
@@ -239,7 +235,7 @@ class DBSCANModel(BaseModel):
                         ft.Row([self.eps_field, self.p_field]),
                         ft.Row([self.metric_dropdown, self.min_samples_field]),
                         ft.Row([self.algorithm_dropdown, self.leaf_size_field]),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

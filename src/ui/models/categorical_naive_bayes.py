@@ -71,6 +71,18 @@ class CategoricalNBModel(BaseModel):
         
         return params, is_valid
 
+    def _create_model(self) -> CategoricalNB:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        model = CategoricalNB(
+            alpha=hyperparams['alpha'],
+            force_alpha=self.force_alpha.value,
+            fit_prior=self.fit_prior.value,
+            min_categories=hyperparams['min_categories'],
+        )
+        return model
+
     def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train Naive Bayes model and display evaluation results."""
         try:
@@ -87,17 +99,7 @@ class CategoricalNBModel(BaseModel):
             
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
 
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            model = CategoricalNB(
-                alpha=hyperparams['alpha'],
-                force_alpha=self.force_alpha.value,
-                fit_prior=self.fit_prior.value,
-                min_categories=hyperparams['min_categories'],
-            )
+            model = self._create_model()
 
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
@@ -170,7 +172,8 @@ class CategoricalNBModel(BaseModel):
         )
         
         self._build_train_button()
-
+        self._build_predict_new_data_button()
+        
         return ft.Card(
             expand=2,
             content=ft.Container(
@@ -197,7 +200,7 @@ class CategoricalNBModel(BaseModel):
                                size=14),
                         ft.Row([self.alpha, self.min_categories]),
                         ft.Row([self.force_alpha, self.fit_prior], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

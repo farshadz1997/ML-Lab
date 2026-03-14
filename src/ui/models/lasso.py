@@ -71,6 +71,20 @@ class LassoModel(BaseModel):
 
         return params, is_valid
 
+    def _create_model(self) -> Lasso:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        model = Lasso(
+            alpha=hyperparams['alpha'],
+            fit_intercept=self.fit_intercept_switch.value,
+            max_iter=hyperparams['max_iter'],
+            tol=hyperparams['tol'],
+            selection=self.selection_dropdown.value,
+            random_state=42,
+        )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train Lasso model and display evaluation results."""
         try:
@@ -82,20 +96,7 @@ class LassoModel(BaseModel):
 
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
 
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            model = Lasso(
-                alpha=hyperparams['alpha'],
-                fit_intercept=self.fit_intercept_switch.value,
-                max_iter=hyperparams['max_iter'],
-                tol=hyperparams['tol'],
-                selection=self.selection_dropdown.value,
-                random_state=42,
-            )
-
+            model = self._create_model()
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
@@ -184,6 +185,7 @@ class LassoModel(BaseModel):
         )
 
         self._build_train_button()
+        self._build_predict_new_data_button()
 
         return ft.Card(
             expand=2,
@@ -212,7 +214,7 @@ class LassoModel(BaseModel):
                         ft.Row([self.alpha_field, self.max_iter_field]),
                         ft.Row([self.tol_field, self.selection_dropdown]),
                         self.fit_intercept_switch,
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

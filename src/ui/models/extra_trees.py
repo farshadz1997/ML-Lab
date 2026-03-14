@@ -103,6 +103,37 @@ class ExtraTreesModel(BaseModel):
 
         return params, is_valid
 
+    def _create_model(self) -> ExtraTreesClassifier | ExtraTreesRegressor:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        task_type = self._get_task_type()
+        if task_type == "Classification":
+            model = ExtraTreesClassifier(
+                n_estimators=hyperparams['n_estimators'],
+                criterion=self.criterion_dropdown.value,
+                max_depth=hyperparams['max_depth'],
+                min_samples_split=hyperparams['min_samples_split'],
+                min_samples_leaf=hyperparams['min_samples_leaf'],
+                max_features=hyperparams['max_features'],
+                bootstrap=self.bootstrap_switch.value,
+                random_state=42,
+                n_jobs=-1,
+            )
+        else:
+            model = ExtraTreesRegressor(
+                n_estimators=hyperparams['n_estimators'],
+                criterion=self.criterion_dropdown.value,
+                max_depth=hyperparams['max_depth'],
+                min_samples_split=hyperparams['min_samples_split'],
+                min_samples_leaf=hyperparams['min_samples_leaf'],
+                max_features=hyperparams['max_features'],
+                bootstrap=self.bootstrap_switch.value,
+                random_state=42,
+                n_jobs=-1,
+            )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train Extra Trees model and display evaluation results."""
         try:
@@ -119,38 +150,7 @@ class ExtraTreesModel(BaseModel):
             
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
 
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            task_type = self._get_task_type()
-
-            if task_type == "Classification":
-                model = ExtraTreesClassifier(
-                    n_estimators=hyperparams['n_estimators'],
-                    criterion=self.criterion_dropdown.value,
-                    max_depth=hyperparams['max_depth'],
-                    min_samples_split=hyperparams['min_samples_split'],
-                    min_samples_leaf=hyperparams['min_samples_leaf'],
-                    max_features=hyperparams['max_features'],
-                    bootstrap=self.bootstrap_switch.value,
-                    random_state=42,
-                    n_jobs=-1,
-                )
-            else:
-                model = ExtraTreesRegressor(
-                    n_estimators=hyperparams['n_estimators'],
-                    criterion=self.criterion_dropdown.value,
-                    max_depth=hyperparams['max_depth'],
-                    min_samples_split=hyperparams['min_samples_split'],
-                    min_samples_leaf=hyperparams['min_samples_leaf'],
-                    max_features=hyperparams['max_features'],
-                    bootstrap=self.bootstrap_switch.value,
-                    random_state=42,
-                    n_jobs=-1,
-                )
-
+            model = self._create_model()
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
@@ -161,6 +161,7 @@ class ExtraTreesModel(BaseModel):
             )
             cv_results = cross_val_score(model, X_train, y_train, cv=kf)
 
+            task_type = self._get_task_type()
             if task_type == "Classification":
                 metrics_dict = calculate_classification_metrics(y_test, y_pred)
                 metrics_dict["CV"] = cv_results
@@ -268,12 +269,14 @@ class ExtraTreesModel(BaseModel):
         self.bootstrap_switch = ft.Switch(
             label="Bootstrap",
             value=False,
+            expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
             tooltip="Whether bootstrap samples are used. Default is False for Extra Trees (uses whole dataset).",
         )
 
         self._build_train_button()
-
+        self._build_predict_new_data_button()
+        
         return ft.Card(
             expand=2,
             content=ft.Container(
@@ -301,8 +304,8 @@ class ExtraTreesModel(BaseModel):
                         ft.Row([self.n_estimators_field, self.max_depth_field]),
                         self.criterion_dropdown,
                         ft.Row([self.min_samples_split_field, self.min_samples_leaf_field]),
-                        ft.Row([self.max_features_dropdown, self.bootstrap_switch]),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.bootstrap_switch, self.max_features_dropdown]),
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

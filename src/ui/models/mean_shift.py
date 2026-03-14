@@ -76,6 +76,26 @@ class MeanShiftModel(BaseModel):
         
         return params, is_valid
     
+    def _create_model(self) -> MeanShift:
+        data = self._prepare_data()
+        X_scaled, feature_cols = data
+        
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        # Estimate bandwidth if not provided
+        bandwidth = hyperparams['bandwidth']
+        if bandwidth is None:
+            bandwidth = estimate_bandwidth(X_scaled, quantile=0.3)
+        # Create and train model
+        model = MeanShift(
+            bandwidth=bandwidth,
+            cluster_all=hyperparams['cluster_all'],
+            max_iter=hyperparams['max_iter'],
+            bin_seeding=hyperparams['bin_seeding'],
+        )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train Mean Shift model and display evaluation results."""
         try:
@@ -88,24 +108,7 @@ class MeanShiftModel(BaseModel):
             
             X_scaled, feature_cols = data
             
-            # Validate and get hyperparameters
-            hyperparams, params_valid = self._validate_hyperparameters()
-            
-            if not params_valid:
-                self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-            
-            # Estimate bandwidth if not provided
-            bandwidth = hyperparams['bandwidth']
-            if bandwidth is None:
-                bandwidth = estimate_bandwidth(X_scaled, quantile=0.3)
-            
-            # Create and train model
-            model = MeanShift(
-                bandwidth=bandwidth,
-                cluster_all=hyperparams['cluster_all'],
-                max_iter=hyperparams['max_iter'],
-                bin_seeding=hyperparams['bin_seeding'],
-            )
+            model = self._create_model()
             cluster_labels = model.fit_predict(X_scaled)
             n_clusters = len(set(cluster_labels))
             
@@ -113,8 +116,12 @@ class MeanShiftModel(BaseModel):
             metrics_dict = calculate_clustering_metrics(X_scaled, cluster_labels)
             
             # Add Mean Shift specific metrics
-            metrics_dict['n_clusters'] = n_clusters
+            hyperparams, _ = self._validate_hyperparameters()
+            bandwidth = hyperparams['bandwidth']
+            if bandwidth is None:
+                bandwidth = estimate_bandwidth(X_scaled, quantile=0.3)
             metrics_dict['bandwidth_used'] = float(bandwidth)
+            metrics_dict['n_clusters'] = n_clusters
             
             result_text = format_results_markdown(metrics_dict, task_type="clustering")
             
@@ -175,6 +182,7 @@ class MeanShiftModel(BaseModel):
         )
         
         self._build_train_button()
+        self._build_predict_new_data_button()
 
         return ft.Card(
             expand=2,
@@ -203,7 +211,7 @@ class MeanShiftModel(BaseModel):
                         self.bandwidth_field,
                         self.max_iter_field,
                         ft.Row([self.cluster_all_toggle, self.bin_seeding_toggle], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

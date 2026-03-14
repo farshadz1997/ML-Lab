@@ -36,6 +36,34 @@ class MiniBatchKMeansModel(BaseModel):
         """Prepare data for clustering."""
         return self._prepare_data_clustering()
     
+    def _create_model(self):
+        hyperparams = {
+            'n_clusters': int(self.n_clusters_field.value),
+            'batch_size': int(self.batch_size_field.value),
+            'n_init': int(self.n_init_field.value) if self.n_init_field.value.strip() != "auto" else "auto",
+            'max_iter': int(self.max_iter_field.value),
+        }
+        validation_rules = {
+            'n_clusters': {'type': int, 'min': 2},
+            'batch_size': {'type': int, 'min': 1},
+            'n_init': {'type': int, 'min': 1, 'max': 100} if self.n_init_field.value.strip() != "auto" else {"type": str, "allowed": ['auto']},
+            'max_iter': {'type': int, 'min': 1},
+        }
+        is_valid, error_msg = validate_hyperparameters(hyperparams, 'minibatch_kmeans', validation_rules)
+        if not is_valid:
+            raise Exception(f"Hyperparameter error: {error_msg}")
+        
+        # Train MiniBatch K-Means
+        model = MiniBatchKMeans(
+            n_clusters=int(self.n_clusters_field.value),
+            init=self.init_dropdown.value,
+            batch_size=int(self.batch_size_field.value),
+            n_init=int(self.n_init_field.value) if self.n_init_field.value.strip() != "auto" else "auto",
+            random_state=42,
+            max_iter=int(self.max_iter_field.value),
+        )
+        return model
+        
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train MiniBatch K-Means model and display evaluation results."""
         try:
@@ -47,35 +75,7 @@ class MiniBatchKMeansModel(BaseModel):
             
             X_scaled, feature_cols = data
             
-            # Validate hyperparameters
-            hyperparams = {
-                'n_clusters': int(self.n_clusters_field.value),
-                'batch_size': int(self.batch_size_field.value),
-                'n_init': int(self.n_init_field.value) if self.n_init_field.value.strip() != "auto" else "auto",
-                'max_iter': int(self.max_iter_field.value),
-            }
-            
-            validation_rules = {
-                'n_clusters': {'type': int, 'min': 2},
-                'batch_size': {'type': int, 'min': 1},
-                'n_init': {'type': int, 'min': 1, 'max': 100} if self.n_init_field.value.strip() != "auto" else {"type": str, "allowed": ['auto']},
-                'max_iter': {'type': int, 'min': 1},
-            }
-            
-            is_valid, error_msg = validate_hyperparameters(hyperparams, 'minibatch_kmeans', validation_rules)
-            if not is_valid:
-                self._show_snackbar(f"Hyperparameter error: {error_msg}", bgcolor=ft.Colors.RED_500)
-                return
-            
-            # Train MiniBatch K-Means
-            model = MiniBatchKMeans(
-                n_clusters=int(self.n_clusters_field.value),
-                init=self.init_dropdown.value,
-                batch_size=int(self.batch_size_field.value),
-                n_init=int(self.n_init_field.value) if self.n_init_field.value.strip() != "auto" else "auto",
-                random_state=42,
-                max_iter=int(self.max_iter_field.value),
-            )
+            model = self._create_model()
             labels = model.fit_predict(X_scaled)
             
             # Calculate metrics
@@ -171,6 +171,7 @@ class MiniBatchKMeansModel(BaseModel):
         )
         
         self._build_train_button()
+        self._build_predict_new_data_button()
         
         return ft.Card(
             expand=2,
@@ -199,7 +200,7 @@ class MiniBatchKMeansModel(BaseModel):
                         ft.Row([self.n_clusters_field, self.batch_size_field]),
                         ft.Row([self.init_dropdown, self.max_iter_field]),
                         self.n_init_field,
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

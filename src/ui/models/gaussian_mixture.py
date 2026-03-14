@@ -77,6 +77,20 @@ class GaussianMixtureModel(BaseModel):
         
         return params, is_valid
     
+    def _create_model(self) -> GaussianMixture:
+        # Validate and get hyperparameters
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        model = GaussianMixture(
+            n_components=hyperparams['n_components'],
+            covariance_type=hyperparams['covariance_type'],
+            max_iter=hyperparams['max_iter'],
+            init_params=self.init_params_dropdown.value,
+            random_state=42,
+        )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train Gaussian Mixture model and display evaluation results."""
         try:
@@ -89,20 +103,7 @@ class GaussianMixtureModel(BaseModel):
             
             X_scaled, feature_cols = data
             
-            # Validate and get hyperparameters
-            hyperparams, params_valid = self._validate_hyperparameters()
-            
-            if not params_valid:
-                self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-            
-            # Create and train model
-            model = GaussianMixture(
-                n_components=hyperparams['n_components'],
-                covariance_type=hyperparams['covariance_type'],
-                max_iter=hyperparams['max_iter'],
-                init_params=self.init_params_dropdown.value,
-                random_state=42,
-            )
+            model = self._create_model()
             cluster_labels = model.fit_predict(X_scaled)
             
             # Calculate metrics using centralized utility
@@ -111,6 +112,7 @@ class GaussianMixtureModel(BaseModel):
             # Add GMM-specific metrics
             metrics_dict['bic_score'] = float(model.bic(X_scaled))
             metrics_dict['aic_score'] = float(model.aic(X_scaled))
+            hyperparams, _ = self._validate_hyperparameters()
             metrics_dict['n_components'] = hyperparams['n_components']
             
             result_text = format_results_markdown(metrics_dict, task_type="clustering")
@@ -192,6 +194,7 @@ random_from_data: initial means are randomly selected data points.""",
         )
         
         self._build_train_button()
+        self._build_predict_new_data_button()
 
         return ft.Card(
             expand=2,
@@ -220,7 +223,7 @@ random_from_data: initial means are randomly selected data points.""",
                         self.n_components_field,
                         self.covariance_type_dropdown,
                         ft.Row([self.init_params_dropdown,self.max_iter_field]),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

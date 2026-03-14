@@ -108,6 +108,27 @@ class CatBoostModel(BaseModel):
 
         return params, is_valid
 
+    def _create_model(self) -> CatBoostClassifier | CatBoostRegressor:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        task_type = self._get_task_type()
+        model_params = dict(
+            iterations=hyperparams['iterations'],
+            depth=hyperparams['depth'],
+            l2_leaf_reg=hyperparams['l2_leaf_reg'],
+            border_count=hyperparams['border_count'],
+            random_state=42,
+            verbose=0,
+        )
+        if hyperparams['learning_rate'] is not None:
+            model_params['learning_rate'] = hyperparams['learning_rate']
+        if task_type == "Classification":
+            model = CatBoostClassifier(**model_params)
+        else:
+            model = CatBoostRegressor(**model_params)
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train CatBoost model and display evaluation results."""
         try:
@@ -128,29 +149,7 @@ class CatBoostModel(BaseModel):
 
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
 
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            task_type = self._get_task_type()
-
-            model_params = dict(
-                iterations=hyperparams['iterations'],
-                depth=hyperparams['depth'],
-                l2_leaf_reg=hyperparams['l2_leaf_reg'],
-                border_count=hyperparams['border_count'],
-                random_state=42,
-                verbose=0,
-            )
-            if hyperparams['learning_rate'] is not None:
-                model_params['learning_rate'] = hyperparams['learning_rate']
-
-            if task_type == "Classification":
-                model = CatBoostClassifier(**model_params)
-            else:
-                model = CatBoostRegressor(**model_params)
-
+            model = self._create_model()
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
@@ -161,6 +160,7 @@ class CatBoostModel(BaseModel):
             )
             cv_results = cross_val_score(model, X_train, y_train, cv=kf)
 
+            task_type = self._get_task_type()
             if task_type == "Classification":
                 metrics_dict = calculate_classification_metrics(y_test, y_pred)
                 metrics_dict["CV"] = cv_results
@@ -248,7 +248,8 @@ class CatBoostModel(BaseModel):
         )
 
         self._build_train_button()
-
+        self._build_predict_new_data_button()
+        
         if not CATBOOST_AVAILABLE:
             warning = ft.Text(
                 "CatBoost not installed. Run: pip install catboost",
@@ -287,7 +288,7 @@ class CatBoostModel(BaseModel):
                         ft.Row([self.iterations_field, self.depth_field]),
                         ft.Row([self.learning_rate_field, self.l2_leaf_reg_field]),
                         self.border_count_field,
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

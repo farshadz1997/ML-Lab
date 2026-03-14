@@ -83,6 +83,19 @@ class AffinityPropagationModel(BaseModel):
         
         return params, is_valid
     
+    def _create_model(self) -> AffinityPropagation:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        model = AffinityPropagation(
+            damping=self.damping_field.value / 100,
+            max_iter=hyperparams['max_iter'],
+            convergence_iter=hyperparams['convergence_iter'],
+            preference=hyperparams['preference'],
+            random_state=42,
+        )
+        return model
+        
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train Affinity Propagation model and display evaluation results."""
         try:
@@ -95,20 +108,7 @@ class AffinityPropagationModel(BaseModel):
             
             X_scaled, feature_cols = data
             
-            # Validate and get hyperparameters
-            hyperparams, params_valid = self._validate_hyperparameters()
-            
-            if not params_valid:
-                self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-            
-            # Create and train model
-            model = AffinityPropagation(
-                damping=self.damping_field.value / 100,
-                max_iter=hyperparams['max_iter'],
-                convergence_iter=hyperparams['convergence_iter'],
-                preference=hyperparams['preference'],
-                random_state=42,
-            )
+            model = self._create_model()
             cluster_labels = model.fit_predict(X_scaled)
             n_clusters = len(set(cluster_labels))
             n_exemplars = len(model.cluster_centers_indices_)
@@ -210,6 +210,7 @@ class AffinityPropagationModel(BaseModel):
         )
         
         self._build_train_button()
+        self._build_predict_new_data_button()
 
         return ft.Card(
             expand=2,
@@ -238,7 +239,7 @@ class AffinityPropagationModel(BaseModel):
                         ft.Row([ft.Text("Damping", font_family="SF regular", expand=1), self.damping_field]),
                         ft.Row([self.convergence_iter_field, self.max_iter_field]),
                         self.preference_field,
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

@@ -67,7 +67,27 @@ class AdaBoostModel(BaseModel):
             is_valid = False
 
         return params, is_valid
-
+    
+    def _create_model(self):
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        task_type = self._get_task_type()
+        if task_type == "Classification":
+            model = AdaBoostClassifier(
+                n_estimators=hyperparams['n_estimators'],
+                learning_rate=hyperparams['learning_rate'],
+                random_state=42,
+            )
+        else:
+            model = AdaBoostRegressor(
+                n_estimators=hyperparams['n_estimators'],
+                learning_rate=hyperparams['learning_rate'],
+                loss=self.loss_dropdown.value,
+                random_state=42,
+            )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train AdaBoost model and display evaluation results."""
         try:
@@ -84,27 +104,7 @@ class AdaBoostModel(BaseModel):
 
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
 
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            task_type = self._get_task_type()
-
-            if task_type == "Classification":
-                model = AdaBoostClassifier(
-                    n_estimators=hyperparams['n_estimators'],
-                    learning_rate=hyperparams['learning_rate'],
-                    random_state=42,
-                )
-            else:
-                model = AdaBoostRegressor(
-                    n_estimators=hyperparams['n_estimators'],
-                    learning_rate=hyperparams['learning_rate'],
-                    loss=self.loss_dropdown.value,
-                    random_state=42,
-                )
-
+            model = self._create_model()
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
@@ -115,6 +115,7 @@ class AdaBoostModel(BaseModel):
             )
             cv_results = cross_val_score(model, X_train, y_train, cv=kf)
 
+            task_type = self._get_task_type()
             if task_type == "Classification":
                 metrics_dict = calculate_classification_metrics(y_test, y_pred)
                 metrics_dict["CV"] = cv_results
@@ -186,7 +187,8 @@ class AdaBoostModel(BaseModel):
         )
 
         self._build_train_button()
-
+        self._build_predict_new_data_button()
+        
         return ft.Card(
             expand=2,
             content=ft.Container(
@@ -213,7 +215,7 @@ class AdaBoostModel(BaseModel):
                                size=14),
                         ft.Row([self.n_estimators_field, self.learning_rate_field]),
                         self.loss_dropdown,
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

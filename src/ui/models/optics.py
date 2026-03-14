@@ -78,6 +78,19 @@ class OPTICSModel(BaseModel):
 
         return params, is_valid
 
+    def _create_model(self):
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        model = OPTICS(
+            min_samples=hyperparams['min_samples'],
+            max_eps=hyperparams['max_eps'],
+            metric=self.metric_dropdown.value,
+            cluster_method=self.cluster_method_dropdown.value,
+            xi=hyperparams['xi'],
+        )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train OPTICS model and display evaluation results."""
         try:
@@ -89,18 +102,7 @@ class OPTICSModel(BaseModel):
 
             X_scaled, feature_cols = data
 
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            model = OPTICS(
-                min_samples=hyperparams['min_samples'],
-                max_eps=hyperparams['max_eps'],
-                metric=self.metric_dropdown.value,
-                cluster_method=self.cluster_method_dropdown.value,
-                xi=hyperparams['xi'],
-            )
+            model = self._create_model()
             model.fit(X_scaled)
             labels = model.labels_
 
@@ -201,6 +203,7 @@ class OPTICSModel(BaseModel):
         )
 
         self._build_train_button()
+        self._build_predict_new_data_button()
 
         return ft.Card(
             expand=2,
@@ -229,7 +232,7 @@ class OPTICSModel(BaseModel):
                         ft.Row([self.min_samples_field, self.max_eps_field]),
                         ft.Row([self.metric_dropdown, self.cluster_method_dropdown]),
                         self.xi_field,
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

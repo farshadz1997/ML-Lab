@@ -136,6 +136,39 @@ class GradientBoostingModel(BaseModel):
         
         return params, is_valid
     
+    def _create_model(self) -> GradientBoostingClassifier | GradientBoostingRegressor:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        task_type = self._get_task_type()
+        if task_type == "Classification":
+            model = GradientBoostingClassifier(
+                loss=self.loss_dropdown.value,
+                n_estimators=hyperparams['n_estimators'],
+                learning_rate=hyperparams['learning_rate'],
+                max_depth=hyperparams['max_depth'],
+                min_samples_split=hyperparams['min_samples_split'],
+                min_samples_leaf=hyperparams['min_samples_leaf'],
+                min_weight_fraction_leaf=hyperparams['min_weight_fraction_leaf'],
+                subsample=hyperparams['subsample'],
+                criterion=self.criterion_dropdown.value,
+                random_state=42,
+            )
+        else:  # Regression
+            model = GradientBoostingRegressor(
+                loss=self.loss_dropdown.value,
+                n_estimators=hyperparams['n_estimators'],
+                learning_rate=hyperparams['learning_rate'],
+                max_depth=hyperparams['max_depth'],
+                min_samples_split=hyperparams['min_samples_split'],
+                min_samples_leaf=hyperparams['min_samples_leaf'],
+                min_weight_fraction_leaf=hyperparams['min_weight_fraction_leaf'],
+                subsample=hyperparams['subsample'],
+                criterion=self.criterion_dropdown.value,
+                random_state=42,
+            )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train gradient boosting model and display evaluation results."""
         try:
@@ -152,42 +185,7 @@ class GradientBoostingModel(BaseModel):
             
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
             
-            # Validate hyperparameters
-            hyperparams, params_valid = self._validate_hyperparameters()
-            
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-            
-            # Create model based on task type
-            task_type = self._get_task_type()
-            
-            if task_type == "Classification":
-                model = GradientBoostingClassifier(
-                    loss=self.loss_dropdown.value,
-                    n_estimators=hyperparams['n_estimators'],
-                    learning_rate=hyperparams['learning_rate'],
-                    max_depth=hyperparams['max_depth'],
-                    min_samples_split=hyperparams['min_samples_split'],
-                    min_samples_leaf=hyperparams['min_samples_leaf'],
-                    min_weight_fraction_leaf=hyperparams['min_weight_fraction_leaf'],
-                    subsample=hyperparams['subsample'],
-                    criterion=self.criterion_dropdown.value,
-                    random_state=42,
-                )
-            else:  # Regression
-                model = GradientBoostingRegressor(
-                    loss=self.loss_dropdown.value,
-                    n_estimators=hyperparams['n_estimators'],
-                    learning_rate=hyperparams['learning_rate'],
-                    max_depth=hyperparams['max_depth'],
-                    min_samples_split=hyperparams['min_samples_split'],
-                    min_samples_leaf=hyperparams['min_samples_leaf'],
-                    min_weight_fraction_leaf=hyperparams['min_weight_fraction_leaf'],
-                    subsample=hyperparams['subsample'],
-                    criterion=self.criterion_dropdown.value,
-                    random_state=42,
-                )
-            
+            model = self._create_model()
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
             
@@ -199,6 +197,7 @@ class GradientBoostingModel(BaseModel):
             )
             cv_results = cross_val_score(model, X_train, y_train, cv=kf)
             
+            task_type = self._get_task_type()
             if task_type == "Classification":
                 metrics_dict = calculate_classification_metrics(y_test, y_pred)
                 metrics_dict["CV"] = cv_results
@@ -366,7 +365,8 @@ class GradientBoostingModel(BaseModel):
         )
         
         self._build_train_button()
-
+        self._build_predict_new_data_button()
+        
         return ft.Card(
             expand=2,
             content=ft.Container(
@@ -397,7 +397,7 @@ class GradientBoostingModel(BaseModel):
                         ft.Row([self.min_samples_split_field, self.min_samples_leaf_field]),
                         ft.Row([self.min_impurity_decrease_field, self.subsample_field]),
                         self.criterion_dropdown,
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

@@ -147,6 +147,45 @@ class LightGBMModel(BaseModel):
 
         return params, is_valid
 
+    def _create_model(self) -> LGBMClassifier | LGBMRegressor:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        task_type = self._get_task_type()
+        if task_type == "Classification":
+            model = LGBMClassifier(
+                n_estimators=hyperparams['n_estimators'],
+                max_depth=hyperparams['max_depth'],
+                learning_rate=hyperparams['learning_rate'],
+                num_leaves=hyperparams['num_leaves'],
+                subsample=hyperparams['subsample'],
+                colsample_bytree=hyperparams['colsample_bytree'],
+                reg_alpha=hyperparams['reg_alpha'],
+                reg_lambda=hyperparams['reg_lambda'],
+                min_child_samples=hyperparams['min_child_samples'],
+                boosting_type=self.boosting_dropdown.value,
+                random_state=42,
+                n_jobs=-1,
+                verbose=-1,
+            )
+        else:
+            model = LGBMRegressor(
+                n_estimators=hyperparams['n_estimators'],
+                max_depth=hyperparams['max_depth'],
+                learning_rate=hyperparams['learning_rate'],
+                num_leaves=hyperparams['num_leaves'],
+                subsample=hyperparams['subsample'],
+                colsample_bytree=hyperparams['colsample_bytree'],
+                reg_alpha=hyperparams['reg_alpha'],
+                reg_lambda=hyperparams['reg_lambda'],
+                min_child_samples=hyperparams['min_child_samples'],
+                boosting_type=self.boosting_dropdown.value,
+                random_state=42,
+                n_jobs=-1,
+                verbose=-1,
+            )
+        return model
+        
     def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train LightGBM model and display evaluation results."""
         try:
@@ -169,46 +208,7 @@ class LightGBMModel(BaseModel):
 
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
 
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            task_type = self._get_task_type()
-
-            if task_type == "Classification":
-                model = LGBMClassifier(
-                    n_estimators=hyperparams['n_estimators'],
-                    max_depth=hyperparams['max_depth'],
-                    learning_rate=hyperparams['learning_rate'],
-                    num_leaves=hyperparams['num_leaves'],
-                    subsample=hyperparams['subsample'],
-                    colsample_bytree=hyperparams['colsample_bytree'],
-                    reg_alpha=hyperparams['reg_alpha'],
-                    reg_lambda=hyperparams['reg_lambda'],
-                    min_child_samples=hyperparams['min_child_samples'],
-                    boosting_type=self.boosting_dropdown.value,
-                    random_state=42,
-                    n_jobs=-1,
-                    verbose=-1,
-                )
-            else:
-                model = LGBMRegressor(
-                    n_estimators=hyperparams['n_estimators'],
-                    max_depth=hyperparams['max_depth'],
-                    learning_rate=hyperparams['learning_rate'],
-                    num_leaves=hyperparams['num_leaves'],
-                    subsample=hyperparams['subsample'],
-                    colsample_bytree=hyperparams['colsample_bytree'],
-                    reg_alpha=hyperparams['reg_alpha'],
-                    reg_lambda=hyperparams['reg_lambda'],
-                    min_child_samples=hyperparams['min_child_samples'],
-                    boosting_type=self.boosting_dropdown.value,
-                    random_state=42,
-                    n_jobs=-1,
-                    verbose=-1,
-                )
-
+            model = self._create_model()
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
@@ -219,6 +219,7 @@ class LightGBMModel(BaseModel):
             )
             cv_results = cross_val_score(model, X_train, y_train, cv=kf)
 
+            task_type = self._get_task_type()
             if task_type == "Classification":
                 metrics_dict = calculate_classification_metrics(y_test, y_pred)
                 metrics_dict["CV"] = cv_results
@@ -357,7 +358,8 @@ class LightGBMModel(BaseModel):
         )
 
         self._build_train_button()
-
+        self._build_predict_new_data_button()
+        
         if not LIGHTGBM_AVAILABLE:
             warning = ft.Text(
                 "LightGBM not installed. Run: pip install lightgbm",
@@ -398,7 +400,7 @@ class LightGBMModel(BaseModel):
                         ft.Row([self.subsample_field, self.colsample_field]),
                         ft.Row([self.reg_alpha_field, self.reg_lambda_field]),
                         ft.Row([self.min_child_samples_field, self.boosting_dropdown]),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

@@ -136,6 +136,43 @@ class XGBoostModel(BaseModel):
 
         return params, is_valid
 
+    def _create_model(self) -> XGBClassifier | XGBRegressor:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        task_type = self._get_task_type()
+        if task_type == "Classification":
+            model = XGBClassifier(
+                n_estimators=hyperparams['n_estimators'],
+                max_depth=hyperparams['max_depth'],
+                learning_rate=hyperparams['learning_rate'],
+                subsample=hyperparams['subsample'],
+                colsample_bytree=hyperparams['colsample_bytree'],
+                reg_alpha=hyperparams['reg_alpha'],
+                reg_lambda=hyperparams['reg_lambda'],
+                min_child_weight=hyperparams['min_child_weight'],
+                booster=self.booster_dropdown.value,
+                random_state=42,
+                n_jobs=-1,
+                verbosity=0,
+            )
+        else:
+            model = XGBRegressor(
+                n_estimators=hyperparams['n_estimators'],
+                max_depth=hyperparams['max_depth'],
+                learning_rate=hyperparams['learning_rate'],
+                subsample=hyperparams['subsample'],
+                colsample_bytree=hyperparams['colsample_bytree'],
+                reg_alpha=hyperparams['reg_alpha'],
+                reg_lambda=hyperparams['reg_lambda'],
+                min_child_weight=hyperparams['min_child_weight'],
+                booster=self.booster_dropdown.value,
+                random_state=42,
+                n_jobs=-1,
+                verbosity=0,
+            )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train XGBoost model and display evaluation results."""
         try:
@@ -156,44 +193,7 @@ class XGBoostModel(BaseModel):
 
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
 
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            task_type = self._get_task_type()
-
-            if task_type == "Classification":
-                model = XGBClassifier(
-                    n_estimators=hyperparams['n_estimators'],
-                    max_depth=hyperparams['max_depth'],
-                    learning_rate=hyperparams['learning_rate'],
-                    subsample=hyperparams['subsample'],
-                    colsample_bytree=hyperparams['colsample_bytree'],
-                    reg_alpha=hyperparams['reg_alpha'],
-                    reg_lambda=hyperparams['reg_lambda'],
-                    min_child_weight=hyperparams['min_child_weight'],
-                    booster=self.booster_dropdown.value,
-                    random_state=42,
-                    n_jobs=-1,
-                    verbosity=0,
-                )
-            else:
-                model = XGBRegressor(
-                    n_estimators=hyperparams['n_estimators'],
-                    max_depth=hyperparams['max_depth'],
-                    learning_rate=hyperparams['learning_rate'],
-                    subsample=hyperparams['subsample'],
-                    colsample_bytree=hyperparams['colsample_bytree'],
-                    reg_alpha=hyperparams['reg_alpha'],
-                    reg_lambda=hyperparams['reg_lambda'],
-                    min_child_weight=hyperparams['min_child_weight'],
-                    booster=self.booster_dropdown.value,
-                    random_state=42,
-                    n_jobs=-1,
-                    verbosity=0,
-                )
-
+            model = self._create_model()
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
@@ -204,6 +204,7 @@ class XGBoostModel(BaseModel):
             )
             cv_results = cross_val_score(model, X_train, y_train, cv=kf)
 
+            task_type = self._get_task_type()
             if task_type == "Classification":
                 metrics_dict = calculate_classification_metrics(y_test, y_pred)
                 metrics_dict["CV"] = cv_results
@@ -332,7 +333,8 @@ class XGBoostModel(BaseModel):
         )
 
         self._build_train_button()
-
+        self._build_predict_new_data_button()
+        
         if not XGBOOST_AVAILABLE:
             warning = ft.Text(
                 "XGBoost not installed. Run: pip install xgboost",
@@ -373,7 +375,7 @@ class XGBoostModel(BaseModel):
                         ft.Row([self.subsample_field, self.colsample_field]),
                         ft.Row([self.reg_alpha_field, self.reg_lambda_field]),
                         self.min_child_weight_field,
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

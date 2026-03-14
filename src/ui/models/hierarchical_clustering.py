@@ -34,6 +34,34 @@ class HierarchicalClusteringModel(BaseModel):
         """Prepare data for clustering."""
         return self._prepare_data_clustering()
     
+    def _create_model(self) -> AgglomerativeClustering:
+        hyperparams = {
+            'n_clusters': int(self.n_clusters_field.value) if self.n_clusters_field.value.strip() != "None" else None,
+            'distance_threshold': None if self.distance_threshold.value.strip() == "None" else float(self.distance_threshold.value),
+        }
+        validation_rules = {
+            'n_clusters': {'type': (int, type(None)), 'min': 2},
+            'distance_threshold': {'type': (float, type(None)), 'min': 0},
+        }
+        is_valid, error_msg = validate_hyperparameters(hyperparams, 'hierarchical', validation_rules)
+        if not is_valid:
+            raise Exception(f"Hyperparameter error: {error_msg}")
+        compute_full_tree_value = self.compute_full_tree_radio_group.value
+        if compute_full_tree_value == "auto":
+            pass
+        elif compute_full_tree_value == "true":
+            compute_full_tree_value = True
+        elif compute_full_tree_value == "false":
+            compute_full_tree_value = False
+        model = AgglomerativeClustering(
+            n_clusters=None if self.n_clusters_field.value.strip() == "None" else int(self.n_clusters_field.value),
+            linkage=self.linkage_dropdown.value,
+            metric=self.metric_dropdown.value,
+            compute_full_tree=compute_full_tree_value,
+            distance_threshold=None if self.distance_threshold.value.strip() == "None" else float(self.distance_threshold.value),
+        )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train Hierarchical Clustering model and display evaluation results."""
         try:
@@ -45,37 +73,7 @@ class HierarchicalClusteringModel(BaseModel):
             
             X_scaled, feature_cols = data
             
-            # Validate hyperparameters
-            hyperparams = {
-                'n_clusters': int(self.n_clusters_field.value) if self.n_clusters_field.value.strip() != "None" else None,
-                'distance_threshold': None if self.distance_threshold.value.strip() == "None" else float(self.distance_threshold.value),
-            }
-            
-            validation_rules = {
-                'n_clusters': {'type': (int, type(None)), 'min': 2},
-                'distance_threshold': {'type': (float, type(None)), 'min': 0},
-            }
-            
-            is_valid, error_msg = validate_hyperparameters(hyperparams, 'hierarchical', validation_rules)
-            if not is_valid:
-                self._show_snackbar(f"Hyperparameter error: {error_msg}", bgcolor=ft.Colors.RED_500)
-                return
-            
-            # Train Hierarchical Clustering
-            compute_full_tree_value = self.compute_full_tree_radio_group.value
-            if compute_full_tree_value == "auto":
-                pass
-            elif compute_full_tree_value == "true":
-                compute_full_tree_value = True
-            elif compute_full_tree_value == "false":
-                compute_full_tree_value = False
-            model = AgglomerativeClustering(
-                n_clusters=None if self.n_clusters_field.value.strip() == "None" else int(self.n_clusters_field.value),
-                linkage=self.linkage_dropdown.value,
-                metric=self.metric_dropdown.value,
-                compute_full_tree=compute_full_tree_value,
-                distance_threshold=None if self.distance_threshold.value.strip() == "None" else float(self.distance_threshold.value),
-            )
+            model = self._create_model()
             labels = model.fit_predict(X_scaled)
             
             # Calculate metrics
@@ -217,6 +215,7 @@ class HierarchicalClusteringModel(BaseModel):
         )
         
         self._build_train_button()
+        self._build_predict_new_data_button()
 
         return ft.Card(
             expand=2,
@@ -246,7 +245,7 @@ class HierarchicalClusteringModel(BaseModel):
                         self.linkage_dropdown,
                         self.metric_dropdown,
                         ft.Row([ft.Text("Compute full tree:", font_family="SF regular"), self.compute_full_tree_radio_group]),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

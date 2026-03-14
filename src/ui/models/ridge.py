@@ -63,6 +63,19 @@ class RidgeModel(BaseModel):
             is_valid = False
 
         return params, is_valid
+    
+    def _create_model(self) -> Ridge:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        model = Ridge(
+            alpha=hyperparams['alpha'],
+            fit_intercept=self.fit_intercept_switch.value,
+            solver=self.solver_dropdown.value,
+            max_iter=hyperparams['max_iter'],
+            random_state=42,
+        )
+        return model
 
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train Ridge model and display evaluation results."""
@@ -75,19 +88,7 @@ class RidgeModel(BaseModel):
 
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
 
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            model = Ridge(
-                alpha=hyperparams['alpha'],
-                fit_intercept=self.fit_intercept_switch.value,
-                solver=self.solver_dropdown.value,
-                max_iter=hyperparams['max_iter'],
-                random_state=42,
-            )
-
+            model = self._create_model()
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
@@ -166,12 +167,14 @@ class RidgeModel(BaseModel):
         self.fit_intercept_switch = ft.Switch(
             label="Fit Intercept",
             value=True,
+            expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
             label_position=ft.LabelPosition.RIGHT,
             tooltip="Whether to fit the intercept for this model.",
         )
 
         self._build_train_button()
+        self._build_predict_new_data_button()
 
         return ft.Card(
             expand=2,
@@ -198,8 +201,8 @@ class RidgeModel(BaseModel):
                                weight="bold",
                                size=14),
                         ft.Row([self.alpha_field, self.solver_dropdown]),
-                        ft.Row([self.max_iter_field, self.fit_intercept_switch]),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.fit_intercept_switch, self.max_iter_field]),
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

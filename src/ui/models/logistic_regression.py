@@ -12,9 +12,9 @@ from __future__ import annotations
 from typing import Optional, Tuple
 from functools import partial
 import flet as ft
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from numpy import inf as infinite
-from sklearn.model_selection import train_test_split, KFold, cross_val_score
+from sklearn.model_selection import KFold, cross_val_score
 from sklearn.linear_model import LogisticRegression
 
 from utils.model_utils import (
@@ -22,8 +22,6 @@ from utils.model_utils import (
     calculate_classification_metrics,
     format_results_markdown,
     create_results_dialog,
-    disable_navigation_bar,
-    enable_navigation_bar,
 )
 from .base_model import BaseModel, CLASSIFICATION_THRESHOLD
 
@@ -31,6 +29,7 @@ from .base_model import BaseModel, CLASSIFICATION_THRESHOLD
 @dataclass
 class LogisticRegressionModel(BaseModel):
     """Logistic Regression classifier with configurable hyperparameters."""
+    model: LogisticRegression | None = field(default=None, init=False)
     
     def _prepare_data(self):
         """Prepare data for training."""
@@ -137,6 +136,28 @@ class LogisticRegressionModel(BaseModel):
         
         return params, is_valid
     
+    def _create_model(self) -> LogisticRegression:
+        # Validate and get hyperparameters with defaults for invalid inputs
+        hyperparams, params_valid = self._validate_hyperparameters()
+        
+        # If invalid params were detected, inform user
+        if not params_valid:
+            self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+            
+        # Create and train model with validated parameters
+        model = LogisticRegression(
+            penalty=hyperparams['penalty'],
+            C=hyperparams['C'],
+            fit_intercept=hyperparams['fit_intercept'],
+            intercept_scaling=hyperparams['intercept_scaling'],
+            max_iter=hyperparams['max_iter'],
+            solver=hyperparams['solver'],
+            class_weight=hyperparams['class_weight'],
+            random_state=42,
+            l1_ratio=hyperparams['l1_ratio']
+        )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train logistic regression model and display evaluation results."""
         try:
@@ -160,25 +181,7 @@ class LogisticRegressionModel(BaseModel):
             
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
             
-            # Validate and get hyperparameters with defaults for invalid inputs
-            hyperparams, params_valid = self._validate_hyperparameters()
-            
-            # If invalid params were detected, inform user
-            if not params_valid:
-                self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-            
-            # Create and train model with validated parameters
-            model = LogisticRegression(
-                penalty=hyperparams['penalty'],
-                C=hyperparams['C'],
-                fit_intercept=hyperparams['fit_intercept'],
-                intercept_scaling=hyperparams['intercept_scaling'],
-                max_iter=hyperparams['max_iter'],
-                solver=hyperparams['solver'],
-                class_weight=hyperparams['class_weight'],
-                random_state=42,
-                l1_ratio=hyperparams['l1_ratio']
-            )
+            model = self._create_model()
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
             
@@ -391,6 +394,7 @@ None: no penalty is added;
         )
         
         self._build_train_button()
+        self._build_predict_new_data_button()
         
         return ft.Card(
             expand=2,
@@ -420,7 +424,7 @@ None: no penalty is added;
                         ft.Row([self.solver_dropdown, self.class_weight_dropdown]),
                         ft.Row([self.penalty_dropdown, self.max_iter_field]),
                         ft.Row([self.fit_intercept_switch, self.intercept_scaling_field]),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

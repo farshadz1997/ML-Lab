@@ -91,6 +91,37 @@ class MLPModel(BaseModel):
 
         return params, is_valid
 
+    def _create_model(self) -> MLPClassifier | MLPRegressor:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        task_type = self._get_task_type()
+        if task_type == "Classification":
+            model = MLPClassifier(
+                hidden_layer_sizes=hyperparams['hidden_layer_sizes'],
+                activation=self.activation_dropdown.value,
+                solver=self.solver_dropdown.value,
+                alpha=hyperparams['alpha'],
+                learning_rate=self.learning_rate_dropdown.value,
+                learning_rate_init=hyperparams['learning_rate_init'],
+                max_iter=hyperparams['max_iter'],
+                early_stopping=self.early_stopping_switch.value,
+                random_state=42,
+            )
+        else:
+            model = MLPRegressor(
+                hidden_layer_sizes=hyperparams['hidden_layer_sizes'],
+                activation=self.activation_dropdown.value,
+                solver=self.solver_dropdown.value,
+                alpha=hyperparams['alpha'],
+                learning_rate=self.learning_rate_dropdown.value,
+                learning_rate_init=hyperparams['learning_rate_init'],
+                max_iter=hyperparams['max_iter'],
+                early_stopping=self.early_stopping_switch.value,
+                random_state=42,
+            )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train MLP model and display evaluation results."""
         try:
@@ -107,38 +138,7 @@ class MLPModel(BaseModel):
             
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
 
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            task_type = self._get_task_type()
-
-            if task_type == "Classification":
-                model = MLPClassifier(
-                    hidden_layer_sizes=hyperparams['hidden_layer_sizes'],
-                    activation=self.activation_dropdown.value,
-                    solver=self.solver_dropdown.value,
-                    alpha=hyperparams['alpha'],
-                    learning_rate=self.learning_rate_dropdown.value,
-                    learning_rate_init=hyperparams['learning_rate_init'],
-                    max_iter=hyperparams['max_iter'],
-                    early_stopping=self.early_stopping_switch.value,
-                    random_state=42,
-                )
-            else:
-                model = MLPRegressor(
-                    hidden_layer_sizes=hyperparams['hidden_layer_sizes'],
-                    activation=self.activation_dropdown.value,
-                    solver=self.solver_dropdown.value,
-                    alpha=hyperparams['alpha'],
-                    learning_rate=self.learning_rate_dropdown.value,
-                    learning_rate_init=hyperparams['learning_rate_init'],
-                    max_iter=hyperparams['max_iter'],
-                    early_stopping=self.early_stopping_switch.value,
-                    random_state=42,
-                )
-
+            model = self._create_model()
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
@@ -149,6 +149,7 @@ class MLPModel(BaseModel):
             )
             cv_results = cross_val_score(model, X_train, y_train, cv=kf)
 
+            task_type = self._get_task_type()
             if task_type == "Classification":
                 metrics_dict = calculate_classification_metrics(y_test, y_pred)
                 metrics_dict["CV"] = cv_results
@@ -268,7 +269,8 @@ class MLPModel(BaseModel):
         )
 
         self._build_train_button()
-
+        self._build_predict_new_data_button()
+        
         return ft.Card(
             expand=2,
             content=ft.Container(
@@ -298,7 +300,7 @@ class MLPModel(BaseModel):
                         ft.Row([self.alpha_field, self.learning_rate_init_field]),
                         ft.Row([self.learning_rate_dropdown, self.max_iter_field]),
                         self.early_stopping_switch,
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

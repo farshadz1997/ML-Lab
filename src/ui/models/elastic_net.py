@@ -80,6 +80,21 @@ class ElasticNetModel(BaseModel):
             is_valid = False
 
         return params, is_valid
+    
+    def _create_model(self) -> ElasticNet:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        model = ElasticNet(
+            alpha=hyperparams['alpha'],
+            l1_ratio=hyperparams['l1_ratio'],
+            fit_intercept=self.fit_intercept_switch.value,
+            max_iter=hyperparams['max_iter'],
+            tol=hyperparams['tol'],
+            selection=self.selection_dropdown.value,
+            random_state=42,
+        )
+        return model
 
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train ElasticNet model and display evaluation results."""
@@ -92,21 +107,7 @@ class ElasticNetModel(BaseModel):
 
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
 
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            model = ElasticNet(
-                alpha=hyperparams['alpha'],
-                l1_ratio=hyperparams['l1_ratio'],
-                fit_intercept=self.fit_intercept_switch.value,
-                max_iter=hyperparams['max_iter'],
-                tol=hyperparams['tol'],
-                selection=self.selection_dropdown.value,
-                random_state=42,
-            )
-
+            model = self._create_model()
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
@@ -198,13 +199,15 @@ class ElasticNetModel(BaseModel):
         self.fit_intercept_switch = ft.Switch(
             label="Fit Intercept",
             value=True,
+            expand=1,
             label_style=ft.TextStyle(font_family="SF regular"),
             label_position=ft.LabelPosition.RIGHT,
             tooltip="Whether to fit the intercept for this model.",
         )
 
         self._build_train_button()
-
+        self._build_predict_new_data_button()
+        
         return ft.Card(
             expand=2,
             content=ft.Container(
@@ -231,8 +234,8 @@ class ElasticNetModel(BaseModel):
                                size=14),
                         ft.Row([self.alpha_field, self.l1_ratio_field]),
                         ft.Row([self.max_iter_field, self.tol_field]),
-                        ft.Row([self.selection_dropdown, self.fit_intercept_switch]),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.fit_intercept_switch, self.selection_dropdown]),
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

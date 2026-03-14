@@ -114,6 +114,33 @@ class DecisionTreeModel(BaseModel):
         
         return params, is_valid
     
+    def _create_model(self) -> DecisionTreeClassifier | DecisionTreeRegressor:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        task_type = self._get_task_type()
+        if task_type == "Classification":
+            model = DecisionTreeClassifier(
+                max_depth=hyperparams['max_depth'],
+                min_samples_split=hyperparams['min_samples_split'],
+                min_samples_leaf=hyperparams['min_samples_leaf'],
+                criterion=hyperparams['criterion'],
+                splitter=hyperparams['splitter'],
+                max_features=hyperparams['max_features'],
+                random_state=42,
+            )
+        else:
+            model = DecisionTreeRegressor(
+                max_depth=hyperparams['max_depth'],
+                min_samples_split=hyperparams['min_samples_split'],
+                min_samples_leaf=hyperparams['min_samples_leaf'],
+                criterion=hyperparams['criterion'],
+                splitter=hyperparams['splitter'],
+                max_features=hyperparams['max_features'],
+                random_state=42,
+            )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train decision tree model and display evaluation results."""
         try:
@@ -137,35 +164,7 @@ class DecisionTreeModel(BaseModel):
             
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
             
-            # Validate and get hyperparameters with defaults for invalid inputs
-            hyperparams, params_valid = self._validate_hyperparameters()
-            
-            # If invalid params were detected, inform user
-            if not params_valid:
-                self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-            
-            # Create and train model with validated parameters
-            task_type = self._get_task_type()
-            if task_type == "Classification":
-                model = DecisionTreeClassifier(
-                    max_depth=hyperparams['max_depth'],
-                    min_samples_split=hyperparams['min_samples_split'],
-                    min_samples_leaf=hyperparams['min_samples_leaf'],
-                    criterion=hyperparams['criterion'],
-                    splitter=hyperparams['splitter'],
-                    max_features=hyperparams['max_features'],
-                    random_state=42,
-                )
-            else:
-                model = DecisionTreeRegressor(
-                    max_depth=hyperparams['max_depth'],
-                    min_samples_split=hyperparams['min_samples_split'],
-                    min_samples_leaf=hyperparams['min_samples_leaf'],
-                    criterion=hyperparams['criterion'],
-                    splitter=hyperparams['splitter'],
-                    max_features=hyperparams['max_features'],
-                    random_state=42,
-                )
+            model = self._create_model()
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
             
@@ -178,6 +177,7 @@ class DecisionTreeModel(BaseModel):
             cv_results = cross_val_score(model, X_train, y_train, cv=kf)
             
             # Calculate metrics using centralized utility
+            task_type = self._get_task_type()
             if task_type == "Classification":
                 metrics_dict = calculate_classification_metrics(y_test, y_pred)
             else:
@@ -292,7 +292,8 @@ class DecisionTreeModel(BaseModel):
         )
         
         self._build_train_button()
-
+        self._build_predict_new_data_button()
+        
         return ft.Card(
             expand=2,
             content=ft.Container(
@@ -321,7 +322,7 @@ class DecisionTreeModel(BaseModel):
                         ft.Row([self.max_depth_field, self.min_samples_split_field]),
                         ft.Row([self.min_samples_leaf_field, self.criterion_dropdown]),
                         ft.Row([self.splitter_dropdown, self.max_features_dropdown]),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

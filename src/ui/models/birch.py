@@ -74,6 +74,17 @@ class BirchModel(BaseModel):
 
         return params, is_valid
 
+    def _create_model(self) -> Birch:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        model = Birch(
+            n_clusters=hyperparams['n_clusters'],
+            threshold=hyperparams['threshold'],
+            branching_factor=hyperparams['branching_factor'],
+        )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train Birch model and display evaluation results."""
         try:
@@ -85,16 +96,7 @@ class BirchModel(BaseModel):
 
             X_scaled, feature_cols = data
 
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            model = Birch(
-                n_clusters=hyperparams['n_clusters'],
-                threshold=hyperparams['threshold'],
-                branching_factor=hyperparams['branching_factor'],
-            )
+            model = self._create_model()
             model.fit(X_scaled)
             labels = model.labels_
 
@@ -152,6 +154,7 @@ class BirchModel(BaseModel):
         )
 
         self._build_train_button()
+        self._build_predict_new_data_button()
 
         return ft.Card(
             expand=2,
@@ -179,7 +182,7 @@ class BirchModel(BaseModel):
                                size=14),
                         ft.Row([self.n_clusters_field, self.threshold_field]),
                         self.branching_factor_field,
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

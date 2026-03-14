@@ -150,6 +150,45 @@ class RandomForestModel(BaseModel):
 
         return params, is_valid
     
+    def _create_model(self) -> RandomForestClassifier | RandomForestRegressor:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        task_type = self._get_task_type()
+        if task_type == "Classification":
+            model = RandomForestClassifier(
+                n_estimators=hyperparams['n_estimators'],
+                criterion=self.criterion_dropdown.value,
+                max_depth=hyperparams['max_depth'],
+                min_samples_split=hyperparams['min_samples_split'],
+                min_samples_leaf=hyperparams['min_samples_leaf'],
+                min_weight_fraction_leaf=hyperparams['min_weight_fraction_leaf'],
+                max_features=hyperparams['max_features'],
+                max_leaf_nodes=hyperparams['max_leaf_nodes'],
+                min_impurity_decrease=hyperparams['min_impurity_decrease'],
+                bootstrap=self.bootstrap_switch.value,
+                oob_score=self.oob_score_switch.value,
+                random_state=42,
+                n_jobs=-1,
+            )
+        else:  # Regression
+            model = RandomForestRegressor(
+                n_estimators=hyperparams['n_estimators'],
+                criterion=self.criterion_dropdown.value,
+                max_depth=hyperparams['max_depth'],
+                min_samples_split=hyperparams['min_samples_split'],
+                min_samples_leaf=hyperparams['min_samples_leaf'],
+                min_weight_fraction_leaf=hyperparams['min_weight_fraction_leaf'],
+                max_features=hyperparams['max_features'],
+                max_leaf_nodes=hyperparams['max_leaf_nodes'],
+                min_impurity_decrease=hyperparams['min_impurity_decrease'],
+                bootstrap=self.bootstrap_switch.value,
+                oob_score=self.oob_score_switch.value,
+                random_state=42,
+                n_jobs=-1,
+            )
+        return model
+        
     def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train random forest model and display evaluation results."""
         try:
@@ -167,48 +206,7 @@ class RandomForestModel(BaseModel):
             
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
             
-            # Validate hyperparameters
-            hyperparams, params_valid = self._validate_hyperparameters()
-            
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-            
-            # Create model based on task type
-            task_type = self._get_task_type()
-            
-            if task_type == "Classification":
-                model = RandomForestClassifier(
-                    n_estimators=hyperparams['n_estimators'],
-                    criterion=self.criterion_dropdown.value,
-                    max_depth=hyperparams['max_depth'],
-                    min_samples_split=hyperparams['min_samples_split'],
-                    min_samples_leaf=hyperparams['min_samples_leaf'],
-                    min_weight_fraction_leaf=hyperparams['min_weight_fraction_leaf'],
-                    max_features=hyperparams['max_features'],
-                    max_leaf_nodes=hyperparams['max_leaf_nodes'],
-                    min_impurity_decrease=hyperparams['min_impurity_decrease'],
-                    bootstrap=self.bootstrap_switch.value,
-                    oob_score=self.oob_score_switch.value,
-                    random_state=42,
-                    n_jobs=-1,
-                )
-            else:  # Regression
-                model = RandomForestRegressor(
-                    n_estimators=hyperparams['n_estimators'],
-                    criterion=self.criterion_dropdown.value,
-                    max_depth=hyperparams['max_depth'],
-                    min_samples_split=hyperparams['min_samples_split'],
-                    min_samples_leaf=hyperparams['min_samples_leaf'],
-                    min_weight_fraction_leaf=hyperparams['min_weight_fraction_leaf'],
-                    max_features=hyperparams['max_features'],
-                    max_leaf_nodes=hyperparams['max_leaf_nodes'],
-                    min_impurity_decrease=hyperparams['min_impurity_decrease'],
-                    bootstrap=self.bootstrap_switch.value,
-                    oob_score=self.oob_score_switch.value,
-                    random_state=42,
-                    n_jobs=-1,
-                )
-            
+            model = self._create_model()
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
             
@@ -221,6 +219,7 @@ class RandomForestModel(BaseModel):
             cv_results = cross_val_score(model, X_train, y_train, cv=kf)
             
             # Calculate metrics using centralized utility
+            task_type = self._get_task_type()
             if task_type == "Classification":
                 metrics_dict = calculate_classification_metrics(y_test, y_pred)
                 metrics_dict["CV"] = cv_results
@@ -385,7 +384,8 @@ class RandomForestModel(BaseModel):
         )
 
         self._build_train_button()
-
+        self._build_predict_new_data_button()
+        
         return ft.Card(
             expand=2,
             content=ft.Container(
@@ -416,7 +416,7 @@ class RandomForestModel(BaseModel):
                         ft.Row([self.min_weight_fraction_leaf, self.max_features_dropdown]),
                         ft.Row([self.max_leaf_nodes_field, self.min_impurity_decrease_field]),
                         ft.Row([self.bootstrap_switch, self.oob_score_switch], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

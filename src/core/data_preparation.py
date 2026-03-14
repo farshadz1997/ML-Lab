@@ -9,10 +9,11 @@ This module provides the prepare_data_for_training() function that handles:
 - Data encoding and validation
 """
 
-from typing import Tuple, List, Dict, Optional, Any
+from typing import Tuple, List, Dict, Optional, Any, Literal
 import pandas as pd
+import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
 
 from utils.model_utils import (
     detect_categorical_columns,
@@ -30,14 +31,16 @@ def prepare_data_for_training(
     test_size: float = 0.2,
     random_state: Optional[int] = None,
     raise_on_unseen: bool = True,
+    scaler_mode: Literal['standard_scaler', 'minmax_scaler', 'none'] = 'standard_scaler'
 ) -> Tuple[
-    pd.DataFrame,
-    pd.DataFrame,
+    np.ndarray,
+    np.ndarray,
     pd.Series,
     pd.Series,
     List[str],
     List[str],
     Dict[str, LabelEncoder],
+    Optional[StandardScaler | MinMaxScaler],
     Dict[str, CardinalityWarning],
 ]:
     """
@@ -53,6 +56,7 @@ def prepare_data_for_training(
         random_state: Random seed for reproducibility (optional)
         raise_on_unseen: If True, raise error when test set has unseen categories;
                         if False, log warning (default: True)
+        scaler_mode: What scaler to use: 'none' | 'standard_scaler' | 'minmax_scaler'
     
     Returns:
         Tuple of:
@@ -63,6 +67,7 @@ def prepare_data_for_training(
         - categorical_cols: List of categorical column names
         - numeric_cols: List of numeric column names
         - encoders: Dict of fitted LabelEncoders for categorical columns
+        - scaler: could return one of StandardScaler or MinMaxScaler or None
         - cardinality_warnings: Dict of high-cardinality warnings
     
     Raises:
@@ -139,6 +144,22 @@ def prepare_data_for_training(
                 raise
             # Otherwise, log warning and continue (for MVP, skipping log)
     
+    # Step 9: Apply scaling based on user selection
+    if scaler_mode == "standard_scaler":
+        scaler = StandardScaler()
+        scaler.fit(X_train_encoded)
+        X_train_encoded = scaler.transform(X_train_encoded)
+        X_test_encoded = scaler.transform(X_test_encoded)
+    elif scaler_mode == "minmax_scaler":
+        scaler = MinMaxScaler(feature_range=(0, 1))
+        scaler.fit(X_train_encoded)
+        X_train_encoded = scaler.transform(X_train_encoded)
+        X_test_encoded = scaler.transform(X_test_encoded)
+    else:
+        scaler = None
+        X_train_encoded = X_train_encoded.values
+        X_test_encoded = X_test_encoded.values
+        
     return (
         X_train_encoded,
         X_test_encoded,
@@ -147,6 +168,7 @@ def prepare_data_for_training(
         categorical_cols,
         numeric_cols,
         encoders,
+        scaler,
         cardinality_warnings,
     )
 
@@ -155,12 +177,14 @@ def prepare_data_for_training_no_split(
     df: pd.DataFrame,
     target_col: str,
     raise_on_unseen: bool = True,
+    scaler_mode: Literal['standard_scaler', 'minmax_scaler', 'none'] = 'standard_scaler'
 ) -> Tuple[
-    pd.DataFrame,
-    pd.Series,
+    np.ndarray,
+    pd.Series | None,
     List[str],
     List[str],
     Dict[str, LabelEncoder],
+    Optional[StandardScaler | MinMaxScaler],
     Dict[str, CardinalityWarning],
 ]:
     """
@@ -220,4 +244,14 @@ def prepare_data_for_training_no_split(
             if raise_on_unseen:
                 raise
     
-    return X_encoded, y, categorical_cols, numeric_cols, encoders, cardinality_warnings
+    # Apply scaling based on user selection
+    if scaler_mode == "standard_scaler":
+        scaler = StandardScaler()
+        X_encoded = scaler.fit_transform(X_encoded)
+    elif scaler_mode == "minmax_scaler":
+        scaler = MinMaxScaler(feature_range=(0, 1))
+        X_encoded = scaler.fit_transform(X_encoded)
+    else:
+        scaler = None
+    
+    return X_encoded, y, categorical_cols, numeric_cols, encoders, scaler, cardinality_warnings

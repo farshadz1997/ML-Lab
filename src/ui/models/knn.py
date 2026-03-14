@@ -102,6 +102,31 @@ class KNNModel(BaseModel):
 
         return params, is_valid
 
+    def _create_model(self) -> KNeighborsClassifier | KNeighborsRegressor:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        task_type = self._get_task_type()
+        if task_type == "Classification":
+            model = KNeighborsClassifier(
+                n_neighbors=hyperparams['n_neighbors'],
+                weights=hyperparams['weights'],
+                algorithm=hyperparams['algorithm'],
+                metric=self.metric_dropdown.value,
+                leaf_size=hyperparams['leaf_size'],
+                n_jobs=-1
+            )
+        else:  # Regression
+            model = KNeighborsRegressor(
+                n_neighbors=hyperparams['n_neighbors'],
+                weights=hyperparams['weights'],
+                algorithm=hyperparams['algorithm'],
+                metric=self.metric_dropdown.value,
+                leaf_size=hyperparams['leaf_size'],
+                n_jobs=-1
+            )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train KNN model and display evaluation results."""
         try:
@@ -118,32 +143,7 @@ class KNNModel(BaseModel):
 
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
 
-            # Validate hyperparameters
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            task_type = self._get_task_type()
-
-            if task_type == "Classification":
-                model = KNeighborsClassifier(
-                    n_neighbors=hyperparams['n_neighbors'],
-                    weights=hyperparams['weights'],
-                    algorithm=hyperparams['algorithm'],
-                    metric=self.metric_dropdown.value,
-                    leaf_size=hyperparams['leaf_size'],
-                    n_jobs=-1
-                )
-            else:  # Regression
-                model = KNeighborsRegressor(
-                    n_neighbors=hyperparams['n_neighbors'],
-                    weights=hyperparams['weights'],
-                    algorithm=hyperparams['algorithm'],
-                    metric=self.metric_dropdown.value,
-                    leaf_size=hyperparams['leaf_size'],
-                    n_jobs=-1
-                )
+            model = self._create_model()
 
             model.fit(X_train, y_train.to_numpy())
             y_pred = model.predict(X_test)
@@ -156,6 +156,7 @@ class KNNModel(BaseModel):
             )
             cv_results = cross_val_score(model, X_train, y_train, cv=kf)
 
+            task_type = self._get_task_type()
             if task_type == "Classification":
                 metrics_dict = calculate_classification_metrics(y_test, y_pred)
                 metrics_dict["CV"] = cv_results
@@ -262,7 +263,8 @@ class KNNModel(BaseModel):
         )
         
         self._build_train_button()
-
+        self._build_predict_new_data_button()
+        
         return ft.Card(
             expand=2,
             content=ft.Container(
@@ -290,7 +292,7 @@ class KNNModel(BaseModel):
                         self.n_neighbors_field,
                         ft.Row([self.weights_dropdown, self.metric_dropdown]),
                         ft.Row([self.algorithm_dropdown, self.leaf_size_field]),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

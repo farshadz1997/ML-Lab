@@ -53,6 +53,15 @@ class GaussianNBModel(BaseModel):
             is_valid = False
 
         return params, is_valid
+    
+    def _create_model(self) -> GaussianNB:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        model = GaussianNB(
+            var_smoothing=hyperparams['var_smoothing'],
+        )
+        return model
 
     def _train_and_evaluate_model(self, e: ft.ControlEvent | None = None, force: bool = False) -> None:
         """Train Naive Bayes model and display evaluation results."""
@@ -70,14 +79,7 @@ class GaussianNBModel(BaseModel):
             
             X_train, X_test, y_train, y_test, (categorical_cols, numeric_cols) = data
 
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            model = GaussianNB(
-                var_smoothing=hyperparams['var_smoothing'],
-            )
+            model = self._create_model()
 
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
@@ -122,7 +124,8 @@ class GaussianNBModel(BaseModel):
         )
 
         self._build_train_button()
-
+        self._build_predict_new_data_button()
+        
         return ft.Card(
             expand=2,
             content=ft.Container(
@@ -148,7 +151,7 @@ class GaussianNBModel(BaseModel):
                                weight="bold",
                                size=14),
                         self.var_smoothing_field,
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

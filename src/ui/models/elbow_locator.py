@@ -36,6 +36,10 @@ class ElbowLocatorModel(BaseModel):
         self.df = self.df.fillna(self.df.mean(numeric_only=True))
         return self._prepare_data_clustering()
     
+    # added because it is abstract method
+    def _create_model(self):
+        pass
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train elbow locator model and display results with optimal cluster recommendation."""
         try:

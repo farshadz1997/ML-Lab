@@ -70,6 +70,24 @@ class SpectralClusteringModel(BaseModel):
             is_valid = False
 
         return params, is_valid
+    
+    def _create_model(self) -> SpectralClustering:
+        hyperparams, params_valid = self._validate_hyperparameters()
+        if not params_valid:
+            self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
+        affinity = self.affinity_dropdown.value
+        model_params = dict(
+            n_clusters=hyperparams['n_clusters'],
+            affinity=affinity,
+            assign_labels=self.assign_labels_dropdown.value,
+            random_state=42,
+        )
+        if affinity == 'nearest_neighbors':
+            model_params['n_neighbors'] = hyperparams['n_neighbors']
+        if affinity == 'rbf':
+            model_params['gamma'] = hyperparams['gamma']
+        model = SpectralClustering(**model_params)
+        return model
 
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train Spectral Clustering model and display evaluation results."""
@@ -82,24 +100,7 @@ class SpectralClusteringModel(BaseModel):
 
             X_scaled, feature_cols = data
 
-            hyperparams, params_valid = self._validate_hyperparameters()
-
-            if not params_valid:
-                self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)
-
-            affinity = self.affinity_dropdown.value
-            model_params = dict(
-                n_clusters=hyperparams['n_clusters'],
-                affinity=affinity,
-                assign_labels=self.assign_labels_dropdown.value,
-                random_state=42,
-            )
-            if affinity == 'nearest_neighbors':
-                model_params['n_neighbors'] = hyperparams['n_neighbors']
-            if affinity == 'rbf':
-                model_params['gamma'] = hyperparams['gamma']
-
-            model = SpectralClustering(**model_params)
+            model = self._create_model()
             labels = model.fit_predict(X_scaled)
 
             metrics_dict = calculate_clustering_metrics(X_scaled, labels, inertia=None)
@@ -192,6 +193,7 @@ class SpectralClusteringModel(BaseModel):
         )
 
         self._build_train_button()
+        self._build_predict_new_data_button()
 
         return ft.Card(
             expand=2,
@@ -220,7 +222,7 @@ class SpectralClusteringModel(BaseModel):
                         ft.Row([self.n_clusters_field, self.affinity_dropdown]),
                         ft.Row([self.n_neighbors_field, self.gamma_field]),
                         self.assign_labels_dropdown,
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

@@ -22,8 +22,6 @@ from utils.model_utils import (
     format_results_markdown,
     create_results_dialog,
     validate_hyperparameters,
-    disable_navigation_bar,
-    enable_navigation_bar,
 )
 from .base_model import BaseModel
 
@@ -35,6 +33,31 @@ class KMeansModel(BaseModel):
     def _prepare_data(self):
         """Prepare data for clustering."""
         return self._prepare_data_clustering()
+    
+    def _create_model(self) -> KMeans:
+        hyperparams = {
+            'n_clusters': int(self.n_clusters_field.value),
+            'n_init': int(self.n_init_field.value) if self.n_init_field.value.strip() != "auto" else "auto",
+            'max_iter': int(self.max_iter_field.value),
+        }
+        validation_rules = {
+            'n_clusters': {'type': int, 'min': 2},
+            'n_init': {'type': int} if self.n_init_field.value.strip() != "auto" else {"type": str, "allowed": ["auto"]},
+            'max_iter': {'type': int, 'min': 1},
+        }
+        is_valid, error_msg = validate_hyperparameters(hyperparams, 'kmeans', validation_rules)
+        if not is_valid:
+            raise Exception(f"Hyperparameter error: {error_msg}")
+        
+        model = KMeans(
+            n_clusters=int(self.n_clusters_field.value),
+            init=self.init_dropdown.value,
+            n_init=int(self.n_init_field.value) if self.n_init_field.value.strip() != "auto" else "auto",
+            max_iter=int(self.max_iter_field.value),
+            algorithm=self.algorithm_dropdown.value,
+            random_state=42,
+        )
+        return model
     
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train K-Means model and display evaluation results."""
@@ -172,6 +195,7 @@ class KMeansModel(BaseModel):
         )
         
         self._build_train_button()
+        self._build_predict_new_data_button()
         
         return ft.Card(
             expand=2,
@@ -200,7 +224,7 @@ class KMeansModel(BaseModel):
                         ft.Row([self.n_clusters_field, self.max_iter_field]),
                         ft.Row([self.init_dropdown, self.algorithm_dropdown]),
                         self.n_init_field,
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )

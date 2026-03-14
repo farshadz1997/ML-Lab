@@ -34,6 +34,29 @@ class HDBSCANModel(BaseModel):
         """Prepare data for clustering."""
         return self._prepare_data_clustering()
     
+    def _create_model(self) -> HDBSCAN:
+        hyperparams = {
+            'min_cluster_size': int(self.min_cluster_size_field.value),
+            'min_samples': int(self.min_samples_field.value) if self.min_samples_field.value.strip() != "None" else None,
+            'leaf_size': int(self.leaf_size_field.value),
+        }
+        validation_rules = {
+            'min_cluster_size': {'type': int, 'min': 2},
+            'min_samples': {'type': (int, type(None)), 'min': 1},
+            'leaf_size': {'type': int, 'min': 1},
+        }
+        is_valid, error_msg = validate_hyperparameters(hyperparams, 'hdbscan', validation_rules)
+        if not is_valid:
+            raise Exception(f"Hyperparameter error: {error_msg}")
+        model = HDBSCAN(
+            min_cluster_size=int(self.min_cluster_size_field.value),
+            min_samples=int(self.min_samples_field.value) if self.min_samples_field.value.strip() != "None" else None,
+            metric=self.metric_dropdown.value,
+            algorithm=self.algorithm_dropdown.value,
+            leaf_size=int(self.leaf_size_field.value),
+        )
+        return model
+    
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:
         """Train HDBSCAN model and display evaluation results."""
         try:
@@ -45,31 +68,7 @@ class HDBSCANModel(BaseModel):
             
             X_scaled, feature_cols = data
             
-            # Validate hyperparameters
-            hyperparams = {
-                'min_cluster_size': int(self.min_cluster_size_field.value),
-                'min_samples': int(self.min_samples_field.value) if self.min_samples_field.value.strip() != "None" else None,
-                'leaf_size': int(self.leaf_size_field.value),
-            }
-            
-            validation_rules = {
-                'min_cluster_size': {'type': int, 'min': 2},
-                'min_samples': {'type': (int, type(None)), 'min': 1},
-                'leaf_size': {'type': int, 'min': 1},
-            }
-            
-            is_valid, error_msg = validate_hyperparameters(hyperparams, 'hdbscan', validation_rules)
-            if not is_valid:
-                self._show_snackbar(f"Hyperparameter error: {error_msg}", bgcolor=ft.Colors.RED_500)
-                return
-            
-            model = HDBSCAN(
-                min_cluster_size=int(self.min_cluster_size_field.value),
-                min_samples=int(self.min_samples_field.value) if self.min_samples_field.value.strip() != "None" else None,
-                metric=self.metric_dropdown.value,
-                algorithm=self.algorithm_dropdown.value,
-                leaf_size=int(self.leaf_size_field.value),
-            )
+            model = self._create_model()
             labels = model.fit_predict(X_scaled)
             
             # Calculate metrics
@@ -187,6 +186,7 @@ class HDBSCANModel(BaseModel):
         )
 
         self._build_train_button()
+        self._build_predict_new_data_button()
 
         return ft.Card(
             expand=2,
@@ -217,7 +217,7 @@ class HDBSCANModel(BaseModel):
                         self.min_cluster_size_field,
                         ft.Row([self.metric_dropdown, self.min_samples_field]),
                         ft.Row([self.algorithm_dropdown, self.leaf_size_field]),
-                        ft.Row([self.train_btn])
+                        ft.Row([self.train_btn, self.test_data_btn])
                     ]
                 )
             )
