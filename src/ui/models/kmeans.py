@@ -34,7 +34,7 @@ class KMeansModel(BaseModel):
         """Prepare data for clustering."""
         return self._prepare_data_clustering()
     
-    def _create_model(self) -> KMeans:
+    def _create_model(self, **kwargs) -> KMeans:
         hyperparams = {
             'n_clusters': int(self.n_clusters_field.value),
             'n_init': int(self.n_init_field.value) if self.n_init_field.value.strip() != "auto" else "auto",

@@ -36,7 +36,7 @@ class MiniBatchKMeansModel(BaseModel):
         """Prepare data for clustering."""
         return self._prepare_data_clustering()
     
-    def _create_model(self):
+    def _create_model(self, **kwargs) -> MiniBatchKMeans:
         hyperparams = {
             'n_clusters': int(self.n_clusters_field.value),
             'batch_size': int(self.batch_size_field.value),

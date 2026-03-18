@@ -34,7 +34,7 @@ class HierarchicalClusteringModel(BaseModel):
         """Prepare data for clustering."""
         return self._prepare_data_clustering()
     
-    def _create_model(self) -> AgglomerativeClustering:
+    def _create_model(self, **kwargs) -> AgglomerativeClustering:
         hyperparams = {
             'n_clusters': int(self.n_clusters_field.value) if self.n_clusters_field.value.strip() != "None" else None,
             'distance_threshold': None if self.distance_threshold.value.strip() == "None" else float(self.distance_threshold.value),

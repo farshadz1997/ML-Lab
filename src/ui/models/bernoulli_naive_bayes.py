@@ -71,7 +71,7 @@ class BernoulliNBModel(BaseModel):
         
         return params, is_valid
 
-    def _create_model(self) -> BernoulliNB:
+    def _create_model(self, **kwargs) -> BernoulliNB:
         hyperparams, params_valid = self._validate_hyperparameters()
         if not params_valid:
             self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)

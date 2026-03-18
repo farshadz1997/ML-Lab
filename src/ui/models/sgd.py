@@ -105,7 +105,7 @@ class SGDModel(BaseModel):
 
         return params, is_valid
 
-    def _create_model(self) -> SGDClassifier | SGDRegressor:
+    def _create_model(self, **kwargs) -> SGDClassifier | SGDRegressor:
         hyperparams, params_valid = self._validate_hyperparameters()
         if not params_valid:
             self._show_snackbar("Invalid hyperparameters. Using default values.", bgcolor=ft.Colors.AMBER_ACCENT_200)

@@ -14,8 +14,11 @@ from functools import partial
 import flet as ft
 from dataclasses import dataclass, field
 from numpy import inf as infinite
-from sklearn.model_selection import KFold, cross_val_score
+from sklearn.model_selection import KFold, cross_val_score, train_test_split
 from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, OneHotEncoder, TargetEncoder
+from sklearn.compose import ColumnTransformer
 
 from utils.model_utils import (
     check_data_quality,
@@ -136,7 +139,7 @@ class LogisticRegressionModel(BaseModel):
         
         return params, is_valid
     
-    def _create_model(self) -> LogisticRegression:
+    def _create_model(self, **kwargs) -> LogisticRegression:
         # Validate and get hyperparameters with defaults for invalid inputs
         hyperparams, params_valid = self._validate_hyperparameters()
         

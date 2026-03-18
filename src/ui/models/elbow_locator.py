@@ -37,7 +37,7 @@ class ElbowLocatorModel(BaseModel):
         return self._prepare_data_clustering()
     
     # added because it is abstract method
-    def _create_model(self):
+    def _create_model(self, **kwargs):
         pass
     
     def _train_and_evaluate_model(self, e: ft.ControlEvent) -> None:

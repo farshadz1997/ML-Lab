@@ -114,7 +114,7 @@ class DecisionTreeModel(BaseModel):
         
         return params, is_valid
     
-    def _create_model(self) -> DecisionTreeClassifier | DecisionTreeRegressor:
+    def _create_model(self, **kwargs) -> DecisionTreeClassifier | DecisionTreeRegressor:
         hyperparams, params_valid = self._validate_hyperparameters()
         if not params_valid:
             self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)

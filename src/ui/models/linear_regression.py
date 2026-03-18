@@ -22,7 +22,7 @@ class LinearRegressionModel(BaseModel):
         """Prepare data for training."""
         return self._prepare_data_supervised()
     
-    def _create_model(self) -> LinearRegression:
+    def _create_model(self, **kwargs) -> LinearRegression:
         model = LinearRegression(
             fit_intercept=self.fit_intercept_switch.value,
             positive=self.positive_switch.value

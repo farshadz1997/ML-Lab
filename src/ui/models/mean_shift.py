@@ -76,10 +76,8 @@ class MeanShiftModel(BaseModel):
         
         return params, is_valid
     
-    def _create_model(self) -> MeanShift:
-        data = self._prepare_data()
-        X_scaled, feature_cols = data
-        
+    def _create_model(self, **kwargs) -> MeanShift:
+        X_scaled = kwargs.get("X_scaled")
         hyperparams, params_valid = self._validate_hyperparameters()
         if not params_valid:
             self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)
@@ -108,7 +106,7 @@ class MeanShiftModel(BaseModel):
             
             X_scaled, feature_cols = data
             
-            model = self._create_model()
+            model = self._create_model(X_scaled=X_scaled)
             cluster_labels = model.fit_predict(X_scaled)
             n_clusters = len(set(cluster_labels))
             

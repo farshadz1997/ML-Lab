@@ -83,7 +83,7 @@ class AffinityPropagationModel(BaseModel):
         
         return params, is_valid
     
-    def _create_model(self) -> AffinityPropagation:
+    def _create_model(self, **kwargs) -> AffinityPropagation:
         hyperparams, params_valid = self._validate_hyperparameters()
         if not params_valid:
             self._show_snackbar("Some hyperparameters were invalid. Using defaults.", bgcolor=ft.Colors.AMBER_ACCENT_200)

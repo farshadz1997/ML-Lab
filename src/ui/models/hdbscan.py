@@ -34,7 +34,7 @@ class HDBSCANModel(BaseModel):
         """Prepare data for clustering."""
         return self._prepare_data_clustering()
     
-    def _create_model(self) -> HDBSCAN:
+    def _create_model(self, **kwargs) -> HDBSCAN:
         hyperparams = {
             'min_cluster_size': int(self.min_cluster_size_field.value),
             'min_samples': int(self.min_samples_field.value) if self.min_samples_field.value.strip() != "None" else None,

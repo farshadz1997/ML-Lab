@@ -77,7 +77,7 @@ class GaussianMixtureModel(BaseModel):
         
         return params, is_valid
     
-    def _create_model(self) -> GaussianMixture:
+    def _create_model(self, **kwargs) -> GaussianMixture:
         # Validate and get hyperparameters
         hyperparams, params_valid = self._validate_hyperparameters()
         if not params_valid:
