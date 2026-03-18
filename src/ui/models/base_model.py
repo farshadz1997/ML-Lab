@@ -16,7 +16,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, Tuple, TYPE_CHECKING, Literal, Callable, List, Dict
 import flet as ft
 from dataclasses import dataclass, field
-from pandas import DataFrame, to_numeric
+from pandas import DataFrame, to_numeric, concat, Series
 import numpy as np
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder
 from sklearn.base import BaseEstimator
@@ -183,7 +183,7 @@ class BaseModel(ABC):
         self.scaler = scaler
         self.cardinality_warnings = cardinality_warnings
 
-    def _warn_cardinality(self, cardinality_warnings) -> None:
+    def _warn_cardinality(self, cardinality_warnings: Dict[str, CardinalityWarning]) -> None:
         """Show snackbar warning if high-cardinality columns were detected."""
         if cardinality_warnings:
             warning_msgs = [
@@ -309,7 +309,8 @@ class BaseModel(ABC):
             
         def predict(e: ft.ControlEvent):
             try:
-                nonlocal model, scaler, encoders, categorical_cols
+                from . import HierarchicalClusteringModel, DBSCANModel, HDBSCANModel, OPTICSModel, SpectralClusteringModel
+                nonlocal model, scaler, encoders, categorical_cols, X_encoded
                 if (
                     any(control.error_text not in (None, "") for control in controls.values()) or
                     any(control.value.strip() == "" for control in controls.values() if isinstance(control, ft.TextField))
@@ -323,7 +324,7 @@ class BaseModel(ABC):
                 self.parent.page.update()
                 
                 is_supervised = True if self.parent.learning_type_dropdown.value == "Supervised" else False
-                if model is None:
+                if model is None or isinstance(self, (HierarchicalClusteringModel, DBSCANModel, HDBSCANModel, OPTICSModel, SpectralClusteringModel)):
                     (
                         X_encoded,
                         y,
@@ -359,13 +360,17 @@ class BaseModel(ABC):
                     X_new = X_new.values
                 
                 # Train model based on learning type and predict new data
-                if model is None:
-                    model = self._create_model()
-                    if is_supervised:
-                        model.fit(X_encoded, y)
-                    else:
-                        model.fit(X_encoded)
-                predicted_data = model.predict(X_new)[0]
+                if isinstance(self, (HierarchicalClusteringModel, DBSCANModel, HDBSCANModel, OPTICSModel, SpectralClusteringModel)):
+                    model = self._create_model(X_scaled=X_encoded) # X_scaled: for MeanShift is required in kwargs
+                    predicted_data = model.fit_predict(concat([DataFrame(X_encoded), DataFrame(X_new)]).values)[-1]
+                else: 
+                    if model is None:
+                        model = self._create_model(X_scaled=X_encoded) # X_scaled: for MeanShift is required in kwargs
+                        if is_supervised:
+                            model.fit(X_encoded, y)
+                        else:
+                            model.fit(X_encoded)
+                    predicted_data = model.predict(X_new)[0] #! Hierarchichal clustering, DBSCAN, HDBSCAN, OPTICS, Spectral Clustering do not have predict method
             except Exception as e:
                 result_message.value = str(e)
                 result_message.color = "red"
@@ -402,6 +407,7 @@ class BaseModel(ABC):
             model = None
             scaler = None
             encoders = None
+            X_encoded = None
             categorical_cols = None
             
             df = self.df.copy()
@@ -548,7 +554,7 @@ class BaseModel(ABC):
         ...
     
     @abstractmethod
-    def _create_model(self) -> BaseEstimator:
+    def _create_model(self, **kwargs) -> BaseEstimator:
         """Create model"""
         ...
         # raise NotImplementedError(f"'{self.__class__.__name__}' does not have '_create_model' method.")
