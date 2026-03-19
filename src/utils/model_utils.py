@@ -731,6 +731,25 @@ def create_results_dialog(
             ))
     
     # Create actions row with Close and Copy buttons
+    md_style = ft.MarkdownStyleSheet(
+        a_text_style=ft.TextStyle(font_family="SF regular"),
+        p_text_style=ft.TextStyle(font_family="SF regular"),
+        h1_text_style=ft.TextStyle(font_family="SF regular"),
+        h2_text_style=ft.TextStyle(font_family="SF regular"),
+        h3_text_style=ft.TextStyle(font_family="SF regular"),
+        h4_text_style=ft.TextStyle(font_family="SF regular"),
+        h5_text_style=ft.TextStyle(font_family="SF regular"),
+        h6_text_style=ft.TextStyle(font_family="SF regular"),
+        em_text_style=ft.TextStyle(font_family="SF regular"),
+        strong_text_style=ft.TextStyle(font_family="SF regular"),
+        del_text_style=ft.TextStyle(font_family="SF regular"),
+        blockquote_text_style=ft.TextStyle(font_family="SF regular"),
+        img_text_style=ft.TextStyle(font_family="SF regular"),
+        checkbox_text_style=ft.TextStyle(font_family="SF regular"),
+        list_bullet_text_style=ft.TextStyle(font_family="SF regular"),
+        table_head_text_style=ft.TextStyle(font_family="SF regular"),
+        table_body_text_style=ft.TextStyle(font_family="SF regular"),
+    )
     dialog = ft.AlertDialog(
         modal=True,
         title=ft.Row([
@@ -748,7 +767,9 @@ def create_results_dialog(
                     ft.Markdown(
                         result_text,
                         extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                        code_theme=ft.MarkdownCodeTheme.GRADIENT_DARK if page.theme_mode == "dark" else ft.MarkdownCodeTheme.VS,
                         selectable=True,
+                        md_style_sheet=md_style
                     ),
                 ]
             )
