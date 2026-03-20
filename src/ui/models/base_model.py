@@ -13,7 +13,7 @@ Common utilities:
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple, TYPE_CHECKING, Literal, Callable, List, Dict
+from typing import Optional, Tuple, TYPE_CHECKING, Literal, Callable, List, Dict, Any
 import flet as ft
 from dataclasses import dataclass, field
 from pandas import DataFrame, to_numeric, concat, Series
@@ -558,3 +558,125 @@ class BaseModel(ABC):
         """Create model"""
         ...
         # raise NotImplementedError(f"'{self.__class__.__name__}' does not have '_create_model' method.")
+        
+    def _generate_code_block(self, imports: List[str], model: str, model_kwargs: Dict[str, Any]) -> str:
+        code = '\n\n---\n\n'
+        code += '**Code block**\n\n'
+        code += '```python\n'
+        scaler = None
+        if self.scaler:
+            scaler = "StandardScaler" if self.parent.scaler_dropdown.value == "standard_scaler" else "MinMaxScaler"
+            imports.append(f"from sklearn.preprocessing import {scaler}")
+        if self.parent.learning_type_dropdown.value == "Supervised":
+            imports.append("from sklearn.model_selection import train_test_split")
+        imports.append("from sklearn.preprocessing import LabelEncoder")
+        code += "\n".join(imports)
+        code += "\n\n" # separator after imports
+        # ─────────────────────────────────────── pre-process ─────────────────────────────────────────────
+        if self.parent.learning_type_dropdown.value == "Supervised":
+            code += f'X = df.drop(columns=["{self.parent.target_column_dropdown.value}"])\n'
+            code += f'y = df["{self.parent.target_column_dropdown.value}"]\n\n'
+            code += 'categorical_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()\n'
+            code += 'numeric_cols = [col for col in X.columns if col not in categorical_cols]\n\n'
+            # train_test_split block start
+            code += 'X_train, X_test, y_train, y_test = train_test_split(\n'
+            code += '\tX,\n'
+            code += '\ty,\n'
+            code += f'\ttest_size={self.parent.test_size_field.value / 100},\n'
+            code += f'\trandom_state=42,\n'
+            code += ')\n'
+            # train_test_split block end
+            # encode block start
+            code += '\n#Create and fit encoders ONLY on training data\n'
+            code += 'encoders = dict()\n'
+            code += 'if categorical_cols:\n'
+            code += '\tfor col in categorical_cols:\n'
+            code += '\t\tencoder = LabelEncoder()\n'
+            code += '\t\tencoder.fit(X_train[col].astype(str)) # Convert to string to handle mixed types\n'
+            code += '\t\tencoders[col] = encoder\n'
+            
+            code += '\n# Apply encoders to training data\n'
+            code += 'X_train_encoded = X_train.copy()\n'
+            code += 'if categorical_cols:\n'
+            code += '\tX_copy = X.copy()\n'
+            code += '\tfor col, encoder in encoders.items():\n'
+            code += '\t\tif col not in X_copy.columns:\n'
+            code += '\t\t\tcontinue\n'
+            code += '\t\tX_values_str = X_copy[col].astype(str)\n'
+            code += '\t\tX_copy[col] = encoder.transform(X_values_str)\n'
+            code += '\tX_train_encoded = X_copy\n'
+            
+            code += '\n#  Apply same encoders to test data (detect unseen values)\n'
+            code += 'X_test_encoded = X_test.copy()\n'
+            code += 'if categorical_cols:\n'
+            code += '\tX_copy = X.copy()\n'
+            code += '\tfor col, encoder in encoders.items():\n'
+            code += '\t\tif col not in X_copy.columns:\n'
+            code += '\t\t\tcontinue\n'
+            code += '\t\t# Convert to string for consistent comparison\n'
+            code += '\t\tX_values_str = X_copy[col].astype(str)\n'
+            code += '\t\tencoder_classes_str = set(encoder.classes_)\n'
+            code += '\t\t# Detect unseen values\n'
+            code += '\t\tunseen = set(X_values_str.unique()) - encoder_classes_str\n'
+            code += '\t\tif unseen:\n'
+            code += '\t\t\traise Exception(f"Column \'{col}\' contains unseen categorical value(s)")\n'
+            code += '\t\tX_copy[col] = encoder.transform(X_values_str)\n'
+            code += '\tX_test_encoded = X_copy\n'
+            # encode block end
+            # scaler block start
+            code += '\n'
+            if scaler == "StandardScaler":
+                code += 'scaler = StandardScaler()\n'
+                code += 'scaler.fit(X_train_encoded)\n'
+                code += 'X_train_encoded = scaler.transform(X_train_encoded)\n'
+                code += 'X_test_encoded = scaler.transform(X_test_encoded)\n'
+            elif scaler == "MinMaxScaler":
+                code += 'scaler = MinMaxScaler(feature_range=(0, 1))\n'
+                code += 'scaler.fit(X_train_encoded)\n'
+                code += 'X_train_encoded = scaler.transform(X_train_encoded)\n'
+                code += 'X_test_encoded = scaler.transform(X_test_encoded)\n'
+            else:
+                code += 'X_train_encoded = X_train_encoded.values\n'
+                code += 'X_test_encoded = X_test_encoded.values\n'
+        else:
+            code += 'X = df\n'
+            code += 'categorical_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()\n'
+            code += 'numeric_cols = [col for col in X.columns if col not in categorical_cols]\n\n'
+            code += '# Create and fit encoders on entire dataset\n'
+            code += 'encoders = dict()\n'
+            code += 'if categorical_cols:\n'
+            code += '\tfor col in categorical_cols:\n'
+            code += '\t\tencoder = LabelEncoder()\n'
+            code += '\t\tencoder.fit(X_train[col].astype(str)) # Convert to string to handle mixed types\n'
+            code += '\t\tencoders[col] = encoder\n'
+            code += '\n# Apply encoders\n'
+            code += 'X_encoded = X.copy()\n'
+            code += 'if categorical_cols:\n'
+            code += '\tX_copy = X.copy()\n'
+            code += '\tfor col, encoder in encoders.items():\n'
+            code += '\t\tif col not in X_copy.columns:\n'
+            code += '\t\t\tcontinue\n'
+            code += '\t\tX_copy[col] = encoder.transform(X_values_str)\n'
+            code += '\tX_encoded = X_copy\n'
+            code += '\n'
+            if scaler == "StandardScaler":
+                code += 'scaler = StandardScaler()\n'
+                code += 'X_encoded = scaler.fit_transform(X_encoded)\n'
+            elif scaler == "MinMaxScaler":
+                code += 'scaler = MinMaxScaler(feature_range=(0, 1))\n'
+                code += 'X_encoded = scaler.fit_transform(X_encoded)\n'
+        # ─────────────────────────────────────── model codes ─────────────────────────────────────────────
+        code += f'\nmodel = {model}(\n'
+        for attr, value in model_kwargs.items():
+            if str(type(value)) == "<class 'str'>":
+                code += f'\t{attr}="{value}",\n'
+            else:
+                code += f'\t{attr}={value},\n'
+        code += ')\n'
+        if self.parent.learning_type_dropdown.value == "Supervised":
+            code += 'model.fit(X_train_encoded, y_train)\n'
+            code += 'y_pred = model.predict(X_test_encoded)\n'
+        else:
+            code += 'model.fit(X_encoded)\n'
+        code += '```'
+        return code
