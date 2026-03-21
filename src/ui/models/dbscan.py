@@ -11,7 +11,6 @@ Configurable hyperparameters:
 """
 
 from __future__ import annotations
-from typing import Optional, Tuple
 import flet as ft
 from dataclasses import dataclass
 from sklearn.cluster import DBSCAN
@@ -21,8 +20,6 @@ from utils.model_utils import (
     calculate_clustering_metrics,
     format_results_markdown,
     create_results_dialog,
-    disable_navigation_bar,
-    enable_navigation_bar,
 )
 from .base_model import BaseModel
 
@@ -84,6 +81,18 @@ class DBSCANModel(BaseModel):
             # Calculate metrics
             metrics_dict = calculate_clustering_metrics(X_scaled, labels)
             result_text = format_results_markdown(metrics_dict, task_type="clustering")
+            result_text += self._generate_code_block(
+                imports=["from sklearn.cluster import DBSCAN"],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    eps=model.eps,
+                    min_samples=model.min_samples,
+                    metric=model.metric,
+                    algorithm=model.algorithm,
+                    leaf_size=model.leaf_size,
+                    p=model.p
+                )
+            )
             
             # Display results dialog with copy button
             evaluation_dialog = create_results_dialog(

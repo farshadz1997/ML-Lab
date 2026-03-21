@@ -97,7 +97,15 @@ class MultinomialNBModel(BaseModel):
             metrics_dict = calculate_classification_metrics(y_test, y_pred)
             metrics_dict["CV"] = cv_results
             result_text = format_results_markdown(metrics_dict, task_type="classification")
-
+            result_text += self._generate_code_block(
+                imports=["from sklearn.naive_bayes import MultinomialNB"],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    alpha=model.alpha,
+                    force_alpha=model.force_alpha,
+                    fit_prior=model.fit_prior
+                )
+            )
             evaluation_dialog = create_results_dialog(
                 self.parent.page,
                 "Multinomial Naive Bayes Classification Results",

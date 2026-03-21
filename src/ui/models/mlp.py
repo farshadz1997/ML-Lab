@@ -161,7 +161,26 @@ class MLPModel(BaseModel):
 
             result_text += f"\n\n**Training Iterations:** {model.n_iter_}\n"
             result_text += f"**Final Loss:** {model.loss_:.6f}\n"
-
+            result_text += self._generate_code_block(
+                imports=[
+                    "from sklearn.neural_network import MLPClassifier" if
+                    task_type == "Classification" else
+                    "from sklearn.neural_network import MLPRegressor"
+                ],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    hidden_layer_sizes=model.hidden_layer_sizes,
+                    activation=model.activation,
+                    solver=model.solver,
+                    alpha=model.alpha,
+                    learning_rate=model.learning_rate,
+                    learning_rate_init=model.learning_rate_init,
+                    max_iter=model.max_iter,
+                    early_stopping=model.early_stopping,
+                    random_state=42,
+                )
+            )
+            
             evaluation_dialog = create_results_dialog(
                 self.parent.page,
                 f"MLP {task_type} Results",

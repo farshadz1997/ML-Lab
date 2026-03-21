@@ -35,8 +35,6 @@ from utils.model_utils import (
     format_results_markdown,
     get_feature_importance,
     create_results_dialog,
-    disable_navigation_bar,
-    enable_navigation_bar,
 )
 from .base_model import BaseModel, CLASSIFICATION_THRESHOLD
 
@@ -176,7 +174,24 @@ class CatBoostModel(BaseModel):
                 sorted_importance = sorted(importance.items(), key=lambda x: x[1], reverse=True)
                 for feature, imp_value in sorted_importance:
                     result_text += f"- {feature}: {imp_value:.4f}\n"
-
+            result_text += self._generate_code_block(
+                imports=[
+                    "from catboost import CatBoostClassifier" if
+                    task_type == "Classification" else
+                    "from catboost import CatBoostRegressor"
+                ],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    iterations=model._init_params['iterations'],
+                    depth=model._init_params['depth'],
+                    l2_leaf_reg=model._init_params['l2_leaf_reg'],
+                    border_count=model._init_params['border_count'],
+                    learning_rate=model._init_params.get('learning_rate', model._learning_rate),
+                    random_state=42,
+                    verbose=0,
+                )
+            )
+            
             evaluation_dialog = create_results_dialog(
                 self.parent.page,
                 f"CatBoost {task_type} Results",

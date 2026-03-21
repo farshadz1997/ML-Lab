@@ -122,6 +122,16 @@ class MeanShiftModel(BaseModel):
             metrics_dict['n_clusters'] = n_clusters
             
             result_text = format_results_markdown(metrics_dict, task_type="clustering")
+            result_text += self._generate_code_block(
+                imports=["from sklearn.cluster import MeanShift"],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    bandwidth=bandwidth,
+                    cluster_all=model.cluster_all,
+                    max_iter=model.max_iter,
+                    bin_seeding=model.bin_seeding,
+                )
+            )
             
             # Display results dialog
             evaluation_dialog = create_results_dialog(

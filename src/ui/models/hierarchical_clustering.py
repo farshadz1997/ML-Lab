@@ -79,6 +79,17 @@ class HierarchicalClusteringModel(BaseModel):
             # Calculate metrics
             metrics_dict = calculate_clustering_metrics(X_scaled, labels)
             result_text = format_results_markdown(metrics_dict, task_type="clustering")
+            result_text += self._generate_code_block(
+                imports=["from sklearn.cluster import AgglomerativeClustering"],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    n_clusters=model.n_clusters,
+                    linkage=model.linkage,
+                    metric=model.metric,
+                    compute_full_tree=model.compute_full_tree,
+                    distance_threshold=model.distance_threshold,
+                )
+            )
             
             # Display results dialog with copy button
             evaluation_dialog = create_results_dialog(

@@ -214,7 +214,26 @@ class GradientBoostingModel(BaseModel):
                 sorted_importance = sorted(importance.items(), key=lambda x: x[1], reverse=True)
                 for feature, imp_value in sorted_importance:
                     result_text += f"- {feature}: {imp_value:.4f}\n"
-            
+            result_text += self._generate_code_block(
+                imports=[
+                    "from sklearn.ensemble import GradientBoostingClassifier" if
+                    task_type == "Classification" else
+                    "from sklearn.ensemble import GradientBoostingRegressor"
+                ],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    loss=model.loss,
+                    n_estimators=model.n_estimators,
+                    learning_rate=model.learning_rate,
+                    max_depth=model.max_depth,
+                    min_samples_split=model.min_samples_split,
+                    min_samples_leaf=model.min_samples_leaf,
+                    min_weight_fraction_leaf=model.min_weight_fraction_leaf,
+                    subsample=model.subsample,
+                    criterion=model.criterion,
+                    random_state=42,
+                )
+            )
             evaluation_dialog = create_results_dialog(
                 self.parent.page,
                 f"Gradient Boosting {task_type} Results",

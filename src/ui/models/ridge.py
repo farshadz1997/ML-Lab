@@ -104,6 +104,17 @@ class RidgeModel(BaseModel):
 
             result_text = f"**Model Intercept:** {model.intercept_:.4f}\n\n"
             result_text += format_results_markdown(metrics_dict, task_type="regression")
+            result_text += self._generate_code_block(
+                imports=["from sklearn.linear_model import Ridge"],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    alpha=model.alpha,
+                    fit_intercept=model.fit_intercept,
+                    solver=model.solver,
+                    max_iter=model.max_iter,
+                    random_state=42,
+                )
+            )
 
             evaluation_dialog = create_results_dialog(
                 self.parent.page,

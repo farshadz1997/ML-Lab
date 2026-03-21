@@ -70,39 +70,25 @@ class KMeansModel(BaseModel):
             
             X_scaled, feature_cols = data
             
-            # Validate hyperparameters
-            hyperparams = {
-                'n_clusters': int(self.n_clusters_field.value),
-                'n_init': int(self.n_init_field.value) if self.n_init_field.value.strip() != "auto" else "auto",
-                'max_iter': int(self.max_iter_field.value),
-            }
-            
-            validation_rules = {
-                'n_clusters': {'type': int, 'min': 2},
-                'n_init': {'type': int} if self.n_init_field.value.strip() != "auto" else {"type": str, "allowed": ["auto"]},
-                'max_iter': {'type': int, 'min': 1},
-            }
-            
-            is_valid, error_msg = validate_hyperparameters(hyperparams, 'kmeans', validation_rules)
-            if not is_valid:
-                self._show_snackbar(f"Hyperparameter error: {error_msg}", bgcolor=ft.Colors.RED_500)
-                return
-            
             # Train K-Means
-            model = KMeans(
-                n_clusters=int(self.n_clusters_field.value),
-                init=self.init_dropdown.value,
-                n_init=int(self.n_init_field.value) if self.n_init_field.value.strip() != "auto" else "auto",
-                max_iter=int(self.max_iter_field.value),
-                algorithm=self.algorithm_dropdown.value,
-                random_state=42,
-            )
+            model = self._create_model()
             model.fit(X_scaled)
             labels = model.labels_ 
             # Calculate metrics
             metrics_dict = calculate_clustering_metrics(X_scaled, labels, inertia=model.inertia_)
             result_text = format_results_markdown(metrics_dict, task_type="clustering")
-            
+            result_text += self._generate_code_block(
+                imports=['from sklearn.cluster import KMeans'],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    n_clusters=model.n_clusters,
+                    init=model.init,
+                    n_init=model.n_init,
+                    max_iter=model.max_iter,
+                    algorithm=model.algorithm,
+                    random_state=42,
+                )
+            )
             # Display results dialog with copy button
             evaluation_dialog = create_results_dialog(
                 self.parent.page,

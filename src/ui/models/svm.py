@@ -13,11 +13,11 @@ Configurable hyperparameters:
 """
 
 from __future__ import annotations
-from typing import Optional, Tuple
+from typing import Tuple
 import flet as ft
 from functools import partial
 from dataclasses import dataclass
-from sklearn.model_selection import train_test_split, cross_val_score, KFold
+from sklearn.model_selection import cross_val_score, KFold
 from sklearn.svm import SVC, SVR
 
 from utils.model_utils import (
@@ -125,10 +125,10 @@ class SVMModel(BaseModel):
                 kernel=hyperparams['kernel'],
                 gamma=hyperparams['gamma'],
                 degree=hyperparams['degree'],
-                decision_function_shape=self.descision_function_shape_dropdown.value,
+                decision_function_shape=self.decision_function_shape_dropdown.value,
                 shrinking=self.shrinking_switch.value,
                 probability=self.probability_switch.value,
-                break_ties=self.break_ties_switch.value if self.descision_function_shape_dropdown.value == "ovr" else False, #! break_ties must be False when decision_function_shape is 'ovo' 
+                break_ties=self.break_ties_switch.value if self.decision_function_shape_dropdown.value == "ovr" else False, #! break_ties must be False when decision_function_shape is 'ovo' 
                 random_state=42,
             )
         else:  # Regression
@@ -175,10 +175,38 @@ class SVMModel(BaseModel):
                 metrics_dict = calculate_classification_metrics(y_test, y_pred)
                 metrics_dict["CV"] = cv_results
                 result_text = format_results_markdown(metrics_dict, task_type="classification")
+                model_kwargs = dict(
+                    C=model.C,
+                    kernel=model.kernel,
+                    gamma=model.gamma,
+                    degree=model.degree,
+                    decision_function_shape=model.decision_function_shape,
+                    shrinking=model.shrinking,
+                    probability=model.probability,
+                    break_ties=model.break_ties,
+                    random_state=42,
+                )
             else:
                 metrics_dict = calculate_regression_metrics(y_test, y_pred)
                 metrics_dict["CV"] = cv_results
                 result_text = format_results_markdown(metrics_dict, task_type="regression")
+                model_kwargs = dict(
+                    C=model.C,
+                    kernel=model.kernel,
+                    gamma=model.gamma,
+                    degree=model.degree,
+                    epsilon=model.epsilon,
+                    shrinking=model.shrinking,
+                )
+            result_text += self._generate_code_block(
+                imports=[
+                    "from sklearn.svm import SVC" if
+                    task_type == "Classification" else
+                    "from sklearn.svm import SVR"
+                ],
+                model=model.__class__.__name__,
+                model_kwargs=model_kwargs
+            )
             
             evaluation_dialog = create_results_dialog(
                 self.parent.page,
@@ -247,7 +275,7 @@ class SVMModel(BaseModel):
             tooltip="Degree of the polynomial kernel function ('poly'). Must be non-negative. Ignored by all other kernels.",
         )
         
-        self.descision_function_shape_dropdown = ft.Dropdown(
+        self.decision_function_shape_dropdown = ft.Dropdown(
             label="Descision function dropdown",
             value="ovr",
             expand=1,
@@ -329,7 +357,7 @@ class SVMModel(BaseModel):
                                size=14),
                         ft.Row([self.kernel_dropdown, self.degree_field]),
                         ft.Row([self.C_field, self.gamma_field]),
-                        self.descision_function_shape_dropdown,
+                        self.decision_function_shape_dropdown,
                         ft.Row(
                             [self.shrinking_switch, self.probability_switch, self.epsilon_field],
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN

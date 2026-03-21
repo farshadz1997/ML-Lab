@@ -125,7 +125,20 @@ class ElasticNetModel(BaseModel):
             n_nonzero = sum(1 for c in model.coef_ if abs(c) > 1e-10)
             result_text += f"**Non-zero Coefficients:** {n_nonzero}/{len(model.coef_)}\n\n"
             result_text += format_results_markdown(metrics_dict, task_type="regression")
-
+            result_text += self._generate_code_block(
+                imports=["from sklearn.linear_model import ElasticNet"],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    alpha=model.alpha,
+                    l1_ratio=model.l1_ratio,
+                    fit_intercept=model.fit_intercept,
+                    max_iter=model.max_iter,
+                    tol=model.tol,
+                    selection=model.selection,
+                    random_state=42,
+                )
+            )
+            
             evaluation_dialog = create_results_dialog(
                 self.parent.page,
                 "ElasticNet Regression Results",

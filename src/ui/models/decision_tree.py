@@ -190,7 +190,23 @@ class DecisionTreeModel(BaseModel):
                 metrics_dict['feature_importance'] = feature_importance
             
             result_text = format_results_markdown(metrics_dict, task_type=task_type.lower())
-            
+            result_text += self._generate_code_block(
+                imports=[
+                    "from sklearn.tree import DecisionTreeClassifier" if
+                    task_type == "Classification" else
+                    "from sklearn.tree import DecisionTreeRegressor"
+                ],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    max_depth=model.max_depth,
+                    min_samples_split=model.min_samples_split,
+                    min_samples_leaf=model.min_samples_leaf,
+                    criterion=model.criterion,
+                    splitter=model.splitter,
+                    max_features=model.max_features,
+                    random_state=42,
+                )
+            )
             # Display results dialog with copy button
             evaluation_dialog = create_results_dialog(
                 self.parent.page,

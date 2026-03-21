@@ -176,7 +176,28 @@ class SGDModel(BaseModel):
                 metrics_dict = calculate_regression_metrics(y_test, y_pred)
                 metrics_dict["CV"] = cv_results
                 result_text = format_results_markdown(metrics_dict, task_type="regression")
-
+            result_text += self._generate_code_block(
+                imports=[
+                    "from sklearn.linear_model import SGDClassifier" if
+                    task_type == "Classification" else
+                    "from sklearn.linear_model import SGDRegressor"
+                ],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    loss=model.loss,
+                    penalty=model.penalty,
+                    alpha=model.alpha,
+                    l1_ratio=model.l1_ratio,
+                    max_iter=model.max_iter,
+                    tol=model.tol,
+                    learning_rate=model.learning_rate,
+                    eta0=model.eta0,
+                    power_t=model.power_t,
+                    shuffle=True,
+                    random_state=42,
+                )
+            )
+            
             evaluation_dialog = create_results_dialog(
                 self.parent.page,
                 f"SGD {task_type} Results",

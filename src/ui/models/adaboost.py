@@ -120,10 +120,21 @@ class AdaBoostModel(BaseModel):
                 metrics_dict = calculate_classification_metrics(y_test, y_pred)
                 metrics_dict["CV"] = cv_results
                 result_text = format_results_markdown(metrics_dict, task_type="classification")
+                model_kwargs = dict(
+                    n_estimators=model.n_estimators,
+                    learning_rate=model.learning_rate,
+                    random_state=42,
+                )
             else:
                 metrics_dict = calculate_regression_metrics(y_test, y_pred)
                 metrics_dict["CV"] = cv_results
                 result_text = format_results_markdown(metrics_dict, task_type="regression")
+                model_kwargs = dict(
+                    n_estimators=model.n_estimators,
+                    learning_rate=model.learning_rate,
+                    loss=model.loss,
+                    random_state=42,
+                )
 
             importance = get_feature_importance(model, self.df.columns.tolist())
             if importance:
@@ -131,7 +142,15 @@ class AdaBoostModel(BaseModel):
                 sorted_importance = sorted(importance.items(), key=lambda x: x[1], reverse=True)
                 for feature, imp_value in sorted_importance:
                     result_text += f"- {feature}: {imp_value:.4f}\n"
-
+            result_text += self._generate_code_block(
+                imports=[
+                    "from sklearn.ensemble import AdaBoostClassifier" if
+                    task_type == "Classification" else
+                    "from sklearn.ensemble import AdaBoostRegressor"
+                ],
+                model=model.__class__.__name__,
+                model_kwargs=model_kwargs
+            )
             evaluation_dialog = create_results_dialog(
                 self.parent.page,
                 f"AdaBoost {task_type} Results",

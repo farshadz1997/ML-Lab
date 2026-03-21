@@ -220,7 +220,29 @@ class XGBoostModel(BaseModel):
                 sorted_importance = sorted(importance.items(), key=lambda x: x[1], reverse=True)
                 for feature, imp_value in sorted_importance:
                     result_text += f"- {feature}: {imp_value:.4f}\n"
-
+            result_text += self._generate_code_block(
+                imports=[
+                    "from xgboost import XGBClassifier" if
+                    task_type == "Classification" else
+                    "from xgboost import XGBRegressor"
+                ],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    n_estimators=model.n_estimators,
+                    max_depth=model.max_depth,
+                    learning_rate=model.learning_rate,
+                    subsample=model.subsample,
+                    colsample_bytree=model.colsample_bytree,
+                    reg_alpha=model.reg_alpha,
+                    reg_lambda=model.reg_lambda,
+                    min_child_weight=model.min_child_weight,
+                    booster=model.booster,
+                    random_state=42,
+                    n_jobs=-1,
+                    verbosity=0,
+                )
+            )
+            
             evaluation_dialog = create_results_dialog(
                 self.parent.page,
                 f"XGBoost {task_type} Results",

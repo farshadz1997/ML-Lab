@@ -16,11 +16,11 @@ Configurable hyperparameters:
 """
 
 from __future__ import annotations
-from typing import Optional, Tuple
+from typing import Tuple
 import flet as ft
 from functools import partial
 from dataclasses import dataclass
-from sklearn.model_selection import train_test_split, cross_val_score, KFold
+from sklearn.model_selection import cross_val_score, KFold
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
 from utils.model_utils import (
@@ -28,8 +28,6 @@ from utils.model_utils import (
     calculate_regression_metrics,
     format_results_markdown,
     create_results_dialog,
-    disable_navigation_bar,
-    enable_navigation_bar,
 )
 from .base_model import BaseModel, CLASSIFICATION_THRESHOLD
 
@@ -165,7 +163,23 @@ class KNNModel(BaseModel):
                 metrics_dict = calculate_regression_metrics(y_test, y_pred)
                 metrics_dict["CV"] = cv_results
                 result_text = format_results_markdown(metrics_dict, task_type="regression")
-
+            result_text += self._generate_code_block(
+                imports=[
+                    "from sklearn.neighbors import KNeighborsClassifier" if
+                    task_type == "Classification" else
+                    "from sklearn.neighbors import KNeighborsRegressor"
+                ],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    n_neighbors=model.n_neighbors,
+                    weights=model.weights,
+                    algorithm=model.algorithm,
+                    metric=self.metric_dropdown.value,
+                    leaf_size=model.leaf_size,
+                    n_jobs=-1
+                )
+            )
+            
             evaluation_dialog = create_results_dialog(
                 self.parent.page,
                 f"KNN {task_type} Results",

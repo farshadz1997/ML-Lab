@@ -9,16 +9,12 @@ Multinomial/binary logistic regression classifier with configurable hyperparamet
 """
 
 from __future__ import annotations
-from typing import Optional, Tuple
 from functools import partial
 import flet as ft
 from dataclasses import dataclass, field
 from numpy import inf as infinite
-from sklearn.model_selection import KFold, cross_val_score, train_test_split
+from sklearn.model_selection import KFold, cross_val_score
 from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, OneHotEncoder, TargetEncoder
-from sklearn.compose import ColumnTransformer
 
 from utils.model_utils import (
     check_data_quality,
@@ -200,7 +196,21 @@ class LogisticRegressionModel(BaseModel):
             metrics_dict = calculate_classification_metrics(y_test, y_pred)
             metrics_dict["CV"] = cv_results
             result_text = format_results_markdown(metrics_dict, task_type="classification")
-            
+            result_text += self._generate_code_block(
+                imports=['from sklearn.linear_model import LogisticRegression', 'from numpy import inf'],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    penalty=model.penalty,
+                    C=model.C,
+                    fit_intercept=model.fit_intercept,
+                    intercept_scaling=model.intercept_scaling,
+                    max_iter=model.max_iter,
+                    solver=model.solver,
+                    class_weight=model.class_weight,
+                    random_state=42,
+                    l1_ratio=model.l1_ratio
+                )
+            ) 
             # Display results dialog with copy button
             evaluation_dialog = create_results_dialog(
                 self.parent.page,

@@ -102,7 +102,16 @@ class BirchModel(BaseModel):
 
             metrics_dict = calculate_clustering_metrics(X_scaled, labels, inertia=None)
             result_text = format_results_markdown(metrics_dict, task_type="clustering")
-
+            result_text += self._generate_code_block(
+                imports=["from sklearn.cluster import Birch"],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    n_clusters=model.n_clusters,
+                    threshold=model.threshold,
+                    branching_factor=model.branching_factor,
+                )
+            )
+            
             evaluation_dialog = create_results_dialog(
                 self.parent.page,
                 "Birch Clustering Results",

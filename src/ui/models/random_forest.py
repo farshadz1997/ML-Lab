@@ -236,7 +236,29 @@ class RandomForestModel(BaseModel):
                 sorted_importance = sorted(importance.items(), key=lambda x: x[1], reverse=True)
                 for feature, imp_value in sorted_importance:
                     result_text += f"- {feature}: {imp_value:.4f}\n"
-            
+            result_text += self._generate_code_block(
+                imports=[
+                    "from sklearn.ensemble import RandomForestClassifier" if
+                    task_type == "Classification" else
+                    "from sklearn.ensemble import RandomForestRegressor"
+                ],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    n_estimators=model.n_estimators,
+                    criterion=model.criterion,
+                    max_depth=model.max_depth,
+                    min_samples_split=model.min_samples_split,
+                    min_samples_leaf=model.min_samples_leaf,
+                    min_weight_fraction_leaf=model.min_weight_fraction_leaf,
+                    max_features=model.max_features,
+                    max_leaf_nodes=model.max_leaf_nodes,
+                    min_impurity_decrease=model.min_impurity_decrease,
+                    bootstrap=model.bootstrap,
+                    oob_score=model.oob_score,
+                    random_state=42,
+                    n_jobs=-1,
+                )
+            )
             # Display results dialog with copy button
             evaluation_dialog = create_results_dialog(
                 self.parent.page,

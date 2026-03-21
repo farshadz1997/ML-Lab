@@ -235,7 +235,30 @@ class LightGBMModel(BaseModel):
                 sorted_importance = sorted(importance.items(), key=lambda x: x[1], reverse=True)
                 for feature, imp_value in sorted_importance:
                     result_text += f"- {feature}: {imp_value:.4f}\n"
-
+            result_text += self._generate_code_block(
+                imports=[
+                    "from lightgbm import LGBMClassifier" if
+                    task_type == "Classification" else
+                    "from lightgbm import LGBMRegressor"
+                ],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    n_estimators=model.n_estimators,
+                    max_depth=model.max_depth,
+                    learning_rate=model.learning_rate,
+                    num_leaves=model.num_leaves,
+                    subsample=model.subsample,
+                    colsample_bytree=model.colsample_bytree,
+                    reg_alpha=model.reg_alpha,
+                    reg_lambda=model.reg_lambda,
+                    min_child_samples=model.min_child_samples,
+                    boosting_type=model.boosting_type,
+                    random_state=42,
+                    n_jobs=-1,
+                    verbose=-1,
+                )
+            )
+            
             evaluation_dialog = create_results_dialog(
                 self.parent.page,
                 f"LightGBM {task_type} Results",

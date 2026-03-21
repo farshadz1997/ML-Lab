@@ -116,7 +116,17 @@ class GaussianMixtureModel(BaseModel):
             metrics_dict['n_components'] = hyperparams['n_components']
             
             result_text = format_results_markdown(metrics_dict, task_type="clustering")
-            
+            result_text += self._generate_code_block(
+                imports=["from sklearn.mixture import GaussianMixture"],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    n_components=model.n_components,
+                    covariance_type=model.covariance_type,
+                    max_iter=model.max_iter,
+                    init_params=model.init_params,
+                    random_state=42,
+                )
+            )
             # Display results dialog
             evaluation_dialog = create_results_dialog(
                 self.parent.page,

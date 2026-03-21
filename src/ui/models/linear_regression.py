@@ -1,15 +1,12 @@
 from __future__ import annotations
 from typing import List, Literal, Tuple, Optional
 import flet as ft
-from dataclasses import dataclass, field
-from sklearn.model_selection import train_test_split, cross_val_score, KFold
+from dataclasses import dataclass
+from sklearn.model_selection import cross_val_score, KFold
 from sklearn.linear_model import LinearRegression
-from sklearn import metrics
-from sklearn.pipeline import Pipeline, make_pipeline
 
 from utils.model_utils import (
     calculate_regression_metrics, format_results_markdown, create_results_dialog,
-    disable_navigation_bar, enable_navigation_bar,
 )
 from .base_model import BaseModel
     
@@ -60,7 +57,14 @@ class LinearRegressionModel(BaseModel):
             # Add intercept to results
             result_text = f"**Model Intercept:** {model.intercept_:.4f}\n\n"
             result_text += format_results_markdown(metrics_dict, task_type="regression")
-            
+            result_text += self._generate_code_block(
+                imports=["from sklearn.linear_model import LinearRegression"],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    fit_intercept=model.fit_intercept,
+                    positive=model.positive
+                )
+            )
             # Display results dialog
             evaluation_dialog = create_results_dialog(
                 self.parent.page,

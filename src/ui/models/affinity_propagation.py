@@ -122,7 +122,17 @@ class AffinityPropagationModel(BaseModel):
             metrics_dict['damping'] = self.damping_field.value / 100
             
             result_text = format_results_markdown(metrics_dict, task_type="clustering")
-            
+            result_text += self._generate_code_block(
+                imports=["from sklearn.cluster import AffinityPropagation"],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    damping=model.damping,
+                    max_iter=model.max_iter,
+                    convergence_iter=model.convergence_iter,
+                    preference=model.preference,
+                    random_state=42,
+                )
+            )
             # Display results dialog
             evaluation_dialog = create_results_dialog(
                 self.parent.page,

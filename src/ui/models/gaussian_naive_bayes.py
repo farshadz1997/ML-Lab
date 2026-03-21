@@ -17,7 +17,7 @@ import flet as ft
 from functools import partial
 from dataclasses import dataclass
 from sklearn.model_selection import cross_val_score, KFold
-from sklearn.naive_bayes import GaussianNB, MultinomialNB, ComplementNB, BernoulliNB, CategoricalNB
+from sklearn.naive_bayes import GaussianNB
 
 from utils.model_utils import (
     calculate_classification_metrics,
@@ -95,6 +95,13 @@ class GaussianNBModel(BaseModel):
             metrics_dict = calculate_classification_metrics(y_test, y_pred)
             metrics_dict["CV"] = cv_results
             result_text = format_results_markdown(metrics_dict, task_type="classification")
+            result_text += self._generate_code_block(
+                imports=["from sklearn.naive_bayes import GaussianNB"],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    var_smoothing=model.var_smoothing
+                )
+            )
 
             evaluation_dialog = create_results_dialog(
                 self.parent.page,

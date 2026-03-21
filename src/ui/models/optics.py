@@ -108,6 +108,17 @@ class OPTICSModel(BaseModel):
 
             metrics_dict = calculate_clustering_metrics(X_scaled, labels, inertia=None)
             result_text = format_results_markdown(metrics_dict, task_type="clustering")
+            result_text += self._generate_code_block(
+                imports=["from sklearn.cluster import OPTICS", "from numpy import inf"],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    min_samples=model.min_samples,
+                    max_eps=model.max_eps,
+                    metric=model.metric,
+                    cluster_method=model.cluster_method,
+                    xi=model.xi,
+                )
+            )
 
             evaluation_dialog = create_results_dialog(
                 self.parent.page,

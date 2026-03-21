@@ -81,7 +81,18 @@ class MiniBatchKMeansModel(BaseModel):
             # Calculate metrics
             metrics_dict = calculate_clustering_metrics(X_scaled, labels, inertia=model.inertia_)
             result_text = format_results_markdown(metrics_dict, task_type="clustering")
-            
+            result_text += self._generate_code_block(
+                imports=["from sklearn.cluster import MiniBatchKMeans"],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    n_clusters=model.n_clusters,
+                    init=model.init,
+                    batch_size=model.batch_size,
+                    n_init=model.n_init,
+                    random_state=42,
+                    max_iter=model.max_iter,
+                )
+            )
             # Display results dialog with copy button
             evaluation_dialog = create_results_dialog(
                 self.parent.page,

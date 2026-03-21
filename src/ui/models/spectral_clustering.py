@@ -105,6 +105,18 @@ class SpectralClusteringModel(BaseModel):
 
             metrics_dict = calculate_clustering_metrics(X_scaled, labels, inertia=None)
             result_text = format_results_markdown(metrics_dict, task_type="clustering")
+            result_text += self._generate_code_block(
+                imports=["from sklearn.cluster import SpectralClustering"],
+                model=model.__class__.__name__,
+                model_kwargs=dict(
+                    n_clusters=model.n_clusters,
+                    affinity=model.affinity,
+                    assign_labels=model.assign_labels,
+                    n_neighbors=model.n_neighbors,
+                    gamma=model.gamma,
+                    random_state=42,
+                )
+            )
 
             evaluation_dialog = create_results_dialog(
                 self.parent.page,
