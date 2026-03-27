@@ -31,7 +31,9 @@ def prepare_data_for_training(
     test_size: float = 0.2,
     random_state: Optional[int] = None,
     raise_on_unseen: bool = True,
-    scaler_mode: Literal['standard_scaler', 'minmax_scaler', 'none'] = 'standard_scaler'
+    scaler_mode: Literal['standard_scaler', 'minmax_scaler', 'none'] = 'standard_scaler',
+    features_encoder: Literal["OrdinalEncoder", "TargetEncoder", "LabelEncoder"] = "OrdinalEncoder",
+    target_encoder: Literal["None", "LabelEncoder"] = "None"
 ) -> Tuple[
     np.ndarray,
     np.ndarray,
@@ -86,6 +88,7 @@ def prepare_data_for_training(
         >>> X_train.shape
         (2, 2)
     """
+    df = df.copy()
     # Step 1: Validate target column exists
     if target_col not in df.columns:
         raise ValueError(f"Target column '{target_col}' not found in DataFrame")
@@ -93,6 +96,10 @@ def prepare_data_for_training(
     # Step 2: Separate features and target
     X = df.drop(columns=[target_col])
     y = df[target_col]
+    
+    if target_encoder == "LabelEncoder" and target_col in df.select_dtypes(include=["object", "category"]).columns.tolist():
+        df[target_col] = LabelEncoder().fit_transform(y)
+        y = df[target_col]
     
     # Step 3: Detect categorical and numeric columns
     categorical_cols = detect_categorical_columns(X)
@@ -117,7 +124,7 @@ def prepare_data_for_training(
     encoders = {}
     if categorical_cols:
         try:
-            encoders = create_categorical_encoders(X_train, categorical_cols)
+            encoders = create_categorical_encoders(X_train, y_train, categorical_cols, features_encoder)
         except EncodingError as e:
             raise ValueError(f"Failed to create encoders: {str(e)}")
     
@@ -177,7 +184,9 @@ def prepare_data_for_training_no_split(
     df: pd.DataFrame,
     target_col: str,
     raise_on_unseen: bool = True,
-    scaler_mode: Literal['standard_scaler', 'minmax_scaler', 'none'] = 'standard_scaler'
+    scaler_mode: Literal['standard_scaler', 'minmax_scaler', 'none'] = 'standard_scaler',
+    features_encoder: Literal["OneHotEncoder", "OrdinalEncoder", "TargetEncoder", "LabelEncoder"] = "OrdinalEncoder",
+    target_encoder: Literal["None", "LabelEncoder"] = "None"
 ) -> Tuple[
     np.ndarray,
     pd.Series | None,
@@ -194,6 +203,8 @@ def prepare_data_for_training_no_split(
         df: Input DataFrame
         target_col: Target column (for supervised), or None for unsupervised
         raise_on_unseen: If True, raise error on unseen categories
+        features_encoder: Type of encoder for features
+        target_encoder: Type of encoder for target
     
     Returns:
         Tuple of:
@@ -212,6 +223,9 @@ def prepare_data_for_training_no_split(
     if target_col and target_col in df.columns:
         X = df.drop(columns=[target_col])
         y = df[target_col]
+        if target_encoder == "LabelEncoder" and target_col in df.select_dtypes(include=["object", "category"]).columns.tolist():
+            y = LabelEncoder().fit_transform(y)
+            df[target_col] = y
     else:
         X = df
         y = None
@@ -227,7 +241,7 @@ def prepare_data_for_training_no_split(
     encoders = {}
     if categorical_cols:
         try:
-            encoders = create_categorical_encoders(X, categorical_cols)
+            encoders = create_categorical_encoders(X, y, categorical_cols, features_encoder)
         except EncodingError as e:
             raise ValueError(f"Failed to create encoders: {str(e)}")
     

@@ -370,6 +370,32 @@ class ModelFactory:
             ]
         )
         
+        self.features_encoder_dropdown = ft.Dropdown(
+            value="OrdinalEncoder",
+            label="Features Encoder",
+            expand=1,
+            label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
+            options=[
+                ft.DropdownOption("OrdinalEncoder", "Ordinal Encoder"),
+                ft.DropdownOption("LabelEncoder", "Label Encoder"),
+                ft.DropdownOption("TargetEncoder", "Target Encoder"),
+                # ft.DropdownOption("OneHotEncoder", "One Hot Encoder"),
+            ],
+        )
+        
+        self.target_encoder_dropdown = ft.Dropdown(
+            value="None",
+            label="Target Encoder",
+            label_style=ft.TextStyle(font_family="SF regular"),
+            text_style=ft.TextStyle(font_family="SF regular"),
+            expand=1,
+            options=[
+                ft.DropdownOption("None"),
+                ft.DropdownOption("LabelEncoder", "Label Encoder"),
+            ]
+        )
+        
         self.n_split_slider = ft.Slider(
             value=5,
             label="{value}",
@@ -430,6 +456,9 @@ class ModelFactory:
                                                 ),
                                             ]
                                         ),
+                                        ft.Divider(),
+                                        ft.Row([ft.Text("Encoders", font_family="SF regular", weight="bold", size=14)]),
+                                        ft.Row([self.features_encoder_dropdown, ft.VerticalDivider(), self.target_encoder_dropdown]),
                                         ft.Divider(),
                                         ft.Row([ft.Text("Cross Validation", font_family="SF regular", weight="bold", size=14)]),
                                         ft.Row(

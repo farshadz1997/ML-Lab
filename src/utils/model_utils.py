@@ -24,11 +24,12 @@ from sklearn.metrics import (
     mean_squared_error,
     mean_absolute_error,
     r2_score,
+    mean_absolute_percentage_error,
     silhouette_score,
     calinski_harabasz_score,
     davies_bouldin_score
 )
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, TargetEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 import flet as ft
@@ -262,7 +263,9 @@ def calculate_regression_metrics(
         r2 = r2_score(y_true_flat, y_pred_flat)
         mse = mean_squared_error(y_true_flat, y_pred_flat)
         rmse = np.sqrt(mse)
+        rmse_mean = rmse / np.mean(y_true_flat)
         mae = mean_absolute_error(y_true_flat, y_pred_flat)
+        mape = mean_absolute_percentage_error(y_true_flat, y_pred_flat)
         
         # Adjusted R² calculation
         n = len(y_true_flat)
@@ -282,8 +285,10 @@ def calculate_regression_metrics(
             'r2_score': float(r2),
             'mse': float(mse),
             'rmse': float(rmse),
+            'rmse_mean': rmse_mean,
             'mae': float(mae),
             'adjusted_r2_score': float(adjusted_r2),
+            'mape': mape,
             'residual_stats': residual_stats,
         }
     
@@ -292,8 +297,10 @@ def calculate_regression_metrics(
             'r2_score': 0.0,
             'mse': 0.0,
             'rmse': 0.0,
+            'rmse_mean': 0.0,
             'mae': 0.0,
             'adjusted_r2_score': 0.0,
+            'mape': 0.0,
             'residual_stats': {},
             'error': str(e),
         }
@@ -490,13 +497,35 @@ def _format_classification_markdown(metrics: Dict[str, Any]) -> str:
 def _format_regression_markdown(metrics: Dict[str, Any]) -> str:
     """Format regression metrics as markdown."""
     r2 = metrics['r2_score']
-    interpretation = "Good fit" if r2 > 0.7 else "Moderate fit" if r2 > 0.4 else "Poor fit"
+    r2_interpretation = "Good fit" if r2 > 0.7 else "Moderate fit" if r2 > 0.4 else "Poor fit"
+    
+    mape = metrics['mape']
+    if mape > 1:
+        mape_interpretation = "N/A"
+    elif mape <= 0.05: 
+        mape_interpretation = "Very Good"
+    elif 0.05 < mape <= 0.1:
+        mape_interpretation = "Good"
+    elif 0.1 < mape <= 0.2:
+        mape_interpretation = "Moderate"
+    else:
+        mape_interpretation = "Weak"
+        
+    rmse_mean = metrics['rmse_mean']
+    if rmse_mean <= 0.05: 
+        rmse_mean_interpretation = "Very Good"
+    elif 0.05 < rmse_mean <= 0.1:
+        rmse_mean_interpretation = "Good"
+    elif 0.1 < rmse_mean <= 0.2:
+        rmse_mean_interpretation = "Moderate"
+    else:
+        rmse_mean_interpretation = "Weak"
     
     md = f"""**R² Score:** {r2:.4f}
 
 *R² (coefficient of determination) measures the proportion of variance explained by the model. Range: [-∞, 1]*
 
-**Interpretation:** {interpretation} - The model explains {r2*100:.1f}% of the variance in the target variable.
+**Interpretation:** {r2_interpretation} - The model explains {r2*100:.1f}% of the variance in the target variable.
 
 ---
 
@@ -506,21 +535,37 @@ def _format_regression_markdown(metrics: Dict[str, Any]) -> str:
 
 ---
 
-**Mean Squared Error (MSE):** {metrics['mse']:.4f}
+**Mean Squared Error (MSE):** {metrics['mse']:,.4f}
 
 *MSE is the average of squared differences between predicted and actual values. Lower is better.*
 
 ---
 
-**Root Mean Squared Error (RMSE):** {metrics['rmse']:.4f}
+**Root Mean Squared Error (RMSE):** {metrics['rmse']:,.4f}
 
 *RMSE is the square root of MSE, in the same units as the target variable. Easier to interpret than MSE.*
 
 ---
 
-**Mean Absolute Error (MAE):** {metrics['mae']:.4f}
+**RMSE / mean:** {rmse_mean:.4f}
+
+*It shows how large the RMSE is relative to the scale of the target. Lower is better.*
+
+**Interpretation:** {rmse_mean_interpretation}
+
+---
+
+**Mean Absolute Error (MAE):** {metrics['mae']:,.4f}
 
 *MAE is the average absolute difference between predicted and actual values. Lower is better.*
+
+---
+
+**Mean Absolute Percentage Error (MAPE):** {mape*100:.2f}%
+
+*MAPE is the average percentage error that the model makes. It shows how far are predictions in percentage terms. Lower is better.*
+
+**Interpretation:** {mape_interpretation} - The model has {mape*100:.2f}% error on average far from True Y.
 
 """
     if 'CV' in metrics:
@@ -982,7 +1027,9 @@ def validate_cardinality(
 
 def create_categorical_encoders(
     X_train: pd.DataFrame,
+    y: pd.Series | None,
     categorical_cols: List[str],
+    encoder_name: Literal["OrdinalEncoder", "TargetEncoder", "LabelEncoder"] = "OrdinalEncoder"
 ) -> Dict[str, LabelEncoder]:
     """
     Create and fit LabelEncoders for categorical columns.
@@ -991,7 +1038,9 @@ def create_categorical_encoders(
     
     Args:
         X_train: Training feature DataFrame
+        y: Target
         categorical_cols: List of categorical column names
+        encoder_name: name of the encoder for features
         
     Returns:
         Dictionary mapping column_name -> fitted LabelEncoder
@@ -1007,6 +1056,9 @@ def create_categorical_encoders(
     """
     encoders = {}
     
+    if y is None and encoder_name == "TargetEncoder":
+        raise Exception("TargetEncoder only works on supervised models")
+    
     for col in categorical_cols:
         if col not in X_train.columns:
             raise EncodingError(
@@ -1014,15 +1066,23 @@ def create_categorical_encoders(
                 column=col,
             )
         
-        encoder = LabelEncoder()
-        encoder.fit(X_train[col].astype(str))  # Convert to string to handle mixed types
+        match encoder_name:
+            case "LabelEncoder":
+                encoder = LabelEncoder()
+                encoder.fit(X_train[col].astype(str).values)  # Convert to string to handle mixed types
+            case "OrdinalEncoder":
+                encoder = OrdinalEncoder()
+                encoder.fit(X_train[[col]]) # X_train[col].to_frame() or X_train[col].values.reshape(-1, 1)
+            case "TargetEncoder":
+                encoder = TargetEncoder(random_state=42)
+                encoder.fit(X_train[[col]], y)
         encoders[col] = encoder
     
     return encoders
 
 
 def apply_encoders(
-    encoders: Dict[str, LabelEncoder],
+    encoders: Dict[str, LabelEncoder | OrdinalEncoder | TargetEncoder],
     X: pd.DataFrame,
     raise_on_unknown: bool = True,
 ) -> pd.DataFrame:
@@ -1056,12 +1116,12 @@ def apply_encoders(
         
         # Convert to string for consistent comparison
         X_values_str = X_copy[col].astype(str)
-        encoder_classes_str = set(encoder.classes_)
+        encoder_classes_str = set(encoder.classes_) if isinstance(encoder, LabelEncoder) else set(encoder.categories_[0])
         
         # Detect unseen values
         unseen = set(X_values_str.unique()) - encoder_classes_str
         
-        if unseen:
+        if unseen and not isinstance(encoder, TargetEncoder): # TargetEncoder categories contain Target column unique values not the column it tries to encode it
             unseen_list = sorted(list(unseen))
             
             if raise_on_unknown:
@@ -1076,7 +1136,7 @@ def apply_encoders(
                 pass
         
         # Apply encoder
-        X_copy[col] = encoder.transform(X_values_str)
+        X_copy[col] = encoder.transform(X_values_str) if isinstance(encoder, LabelEncoder) else encoder.transform(X_values_str.values.reshape(-1, 1))
     
     return X_copy
 
