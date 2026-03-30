@@ -380,7 +380,7 @@ class ModelFactory:
                 ft.DropdownOption("OrdinalEncoder", "Ordinal Encoder"),
                 ft.DropdownOption("LabelEncoder", "Label Encoder"),
                 ft.DropdownOption("TargetEncoder", "Target Encoder"),
-                # ft.DropdownOption("OneHotEncoder", "One Hot Encoder"),
+                ft.DropdownOption("OneHotEncoder", "One Hot Encoder"),
             ],
         )
         

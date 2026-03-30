@@ -24,6 +24,7 @@ from sklearn.base import BaseEstimator
 from utils.model_utils import (
     disable_navigation_bar,
     enable_navigation_bar,
+    encode_with_one_hot_encoder,
     CardinalityWarning
 )
 from core.data_preparation import prepare_data_for_training, prepare_data_for_training_no_split
@@ -350,12 +351,17 @@ class BaseModel(ABC):
                 array = {}
                 for col, control in controls.items():
                     if col in categorical_cols:
-                        encoder = encoders.get(col)
-                        encoded_data = encoder.transform(np.array([control.value]).reshape(-1, 1))[0]
+                        if isinstance(encoders, OneHotEncoder):
+                            encoded_data = control.value
+                        else:
+                            encoder = encoders.get(col)
+                            encoded_data = encoder.transform(np.array([control.value]).reshape(-1, 1))[0]
                     else:
                         encoded_data = to_numeric(control.value)
                     array[col] = [encoded_data]
                 X_new = DataFrame(array)
+                if isinstance(encoders, OneHotEncoder) and categorical_cols:
+                    X_new = encode_with_one_hot_encoder(encoders, X_new, categorical_cols, False)
                 
                 # Scale new data if scaler was chosen
                 if scaler:
@@ -567,9 +573,6 @@ class BaseModel(ABC):
         # raise NotImplementedError(f"'{self.__class__.__name__}' does not have '_create_model' method.")
         
     def _generate_code_block(self, imports: List[str], model: str, model_kwargs: Dict[str, Any]) -> str:
-        code = '\n\n---\n\n'
-        code += '**Code block**\n\n'
-        code += '```python\n'
         scaler = None
         features_encoder = self.parent.features_encoder_dropdown.value
         preprocessing = set()
@@ -586,6 +589,12 @@ class BaseModel(ABC):
             preprocessing.add(features_encoder)
         if len(preprocessing) > 0:
             imports.append(f"from sklearn.preprocessing import {', '.join(preprocessing)}")
+        if "OneHotEncoder" in preprocessing:
+            imports.append("import pandas as pd")
+        code = '\n\n---\n\n'
+        code += '**Code block**\n\n'
+        code += '*If you don\'t see encoding process in generated code it\'s because of it wasn\'t needed.*\n\n'
+        code += '```python\n'
         code += "\n".join(imports)
         code += "\n\n" # separator after imports
         # ─────────────────────────────────────── pre-process ─────────────────────────────────────────────
@@ -611,57 +620,80 @@ class BaseModel(ABC):
             # train_test_split block end
             # encode block start
             if categorical_cols:
-                code += '\n# Create and fit encoders ONLY on training data\n'
-                code += 'encoders = dict()\n'
-                code += 'for col in categorical_cols:\n'
-                match features_encoder:
-                    case "LabelEncoder":
-                        code += f'\tencoder = LabelEncoder()\n'
-                        code += '\tencoder.fit(X_train[col].astype(str)) # Convert to string to handle mixed types\n'
-                    case "OrdinalEncoder":
-                        code += f'\tencoder = OrdinalEncoder()\n'
-                        code += '\tencoder.fit(X_train[[col]]) # Or: X_train[col].to_frame() or X_train[col].values.reshape(-1, 1)\n'
-                    case "TargetEncoder":
-                        code += '\tencoder = TargetEncoder(random_state=42)\n'
-                        code += '\tencoder.fit(X_train[[col]], y)\n'
-                code += '\tencoders[col] = encoder\n'
-                code += '\n# Apply encoders to training data\n'
+                if features_encoder == "OneHotEncoder":
+                    code += '\n# Create encoder\n'
+                    code += 'encoder = OneHotEncoder(sparse_output=False, handle_unknown="ignore")\n'
+                    code += '\n# Apply encoder to training data\n'
+                else:
+                    code += '\n# Create and fit encoders ONLY on training data\n'
+                    code += 'encoders = dict()\n'
+                    code += 'for col in categorical_cols:\n'
+                    match features_encoder:
+                        case "LabelEncoder":
+                            code += f'\tencoder = LabelEncoder()\n'
+                            code += '\tencoder.fit(X_train[col].astype(str)) # Convert to string to handle mixed types\n'
+                        case "OrdinalEncoder":
+                            code += f'\tencoder = OrdinalEncoder()\n'
+                            code += '\tencoder.fit(X_train[[col]]) # Or: X_train[col].to_frame() or X_train[col].values.reshape(-1, 1)\n'
+                        case "TargetEncoder":
+                            code += '\tencoder = TargetEncoder(random_state=42)\n'
+                            code += '\tencoder.fit(X_train[[col]], y)\n'
+                    code += '\tencoders[col] = encoder\n'
+                    code += '\n# Apply encoders to training data\n'
             code += 'X_train_encoded = X_train.copy()\n'
             if categorical_cols:
-                code += 'X_copy = X.copy()\n'
-                code += 'for col, encoder in encoders.items():\n'
-                code += '\tif col not in X_copy.columns:\n'
-                code += '\t\tcontinue\n'
-                code += '\tX_values_str = X_copy[col].astype(str)\n'
-                if features_encoder == "LabelEncoder":
-                    code += '\tX_copy[col] = encoder.transform(X_values_str)\n'
+                if features_encoder == "OneHotEncoder":
+                    code += 'X_train_ohe = pd.DataFrame(\n'
+                    code += '\tencoder.fit_transform(X_train_encoded[categorical_cols]),\n'
+                    code += '\tcolumns=encoder.get_feature_names_out(categorical_cols),\n'
+                    code += '\tindex=X_train_encoded.index\n'
+                    code += ')\n'
+                    code += 'other_cols = X_train_encoded.drop(columns=categorical_cols).columns\n'
+                    code += 'X_train_encoded = pd.concat([X_train_encoded[other_cols], X_train_ohe], axis=1)\n'
+                    code += '\n#  Apply same encoder to test data\n'
                 else:
-                    code += '\tX_copy[col] = encoder.transform(X_values_str.values.reshape(-1, 1))\n'
-                code += 'X_train_encoded = X_copy\n'
-                
-                code += '\n#  Apply same encoders to test data (detect unseen values)\n'
+                    code += 'X_copy = X.copy()\n'
+                    code += 'for col, encoder in encoders.items():\n'
+                    code += '\tif col not in X_copy.columns:\n'
+                    code += '\t\tcontinue\n'
+                    code += '\tX_values_str = X_copy[col].astype(str)\n'
+                    if features_encoder == "LabelEncoder":
+                        code += '\tX_copy[col] = encoder.transform(X_values_str)\n'
+                    else:
+                        code += '\tX_copy[col] = encoder.transform(X_values_str.values.reshape(-1, 1))\n'
+                    code += 'X_train_encoded = X_copy\n'
+                    code += '\n#  Apply same encoders to test data (detect unseen values)\n'
             code += 'X_test_encoded = X_test.copy()\n'
             if categorical_cols:
-                code += 'X_copy = X.copy()\n'
-                code += 'for col, encoder in encoders.items():\n'
-                code += '\tif col not in X_copy.columns:\n'
-                code += '\t\tcontinue\n'
-                code += '\t# Convert to string for consistent comparison\n'
-                code += '\tX_values_str = X_copy[col].astype(str)\n'
-                if features_encoder == "LabelEncoder":
-                    code += '\tencoder_classes_str = set(encoder.classes_)\n'
+                if features_encoder == "OneHotEncoder":
+                    code += 'X_test_ohe = pd.DataFrame(\n'
+                    code += '\tencoder.transform(X_test_encoded[categorical_cols]),\n'
+                    code += '\tcolumns=encoder.get_feature_names_out(categorical_cols),\n'
+                    code += '\tindex=X_test_encoded.index\n'
+                    code += ')\n'
+                    code += 'other_cols = X_test_encoded.drop(columns=categorical_cols).columns\n'
+                    code += 'X_test_encoded = pd.concat([X_test_encoded[other_cols], X_test_ohe], axis=1)\n'
                 else:
-                    code += '\tencoder_classes_str = set(encoder.categories_[0])\n'
-                if features_encoder != "TargetEncoder":
-                    code += '\t# Detect unseen values\n'
-                    code += '\tunseen = set(X_values_str.unique()) - encoder_classes_str\n'
-                    code += '\tif unseen:\n'
-                    code += '\t\traise Exception(f"Column \'{col}\' contains unseen categorical value(s)")\n'
-                if features_encoder == "LabelEncoder":
-                    code += '\tX_copy[col] = encoder.transform(X_values_str)\n'
-                else:
-                    code += '\tX_copy[col] = encoder.transform(X_values_str.values.reshape(-1, 1))\n'
-                code += 'X_test_encoded = X_copy\n'
+                    code += 'X_copy = X.copy()\n'
+                    code += 'for col, encoder in encoders.items():\n'
+                    code += '\tif col not in X_copy.columns:\n'
+                    code += '\t\tcontinue\n'
+                    code += '\t# Convert to string for consistent comparison\n'
+                    code += '\tX_values_str = X_copy[col].astype(str)\n'
+                    if features_encoder == "LabelEncoder":
+                        code += '\tencoder_classes_str = set(encoder.classes_)\n'
+                    else:
+                        code += '\tencoder_classes_str = set(encoder.categories_[0])\n'
+                    if features_encoder != "TargetEncoder":
+                        code += '\t# Detect unseen values\n'
+                        code += '\tunseen = set(X_values_str.unique()) - encoder_classes_str\n'
+                        code += '\tif unseen:\n'
+                        code += '\t\traise Exception(f"Column \'{col}\' contains unseen categorical value(s)")\n'
+                    if features_encoder == "LabelEncoder":
+                        code += '\tX_copy[col] = encoder.transform(X_values_str)\n'
+                    else:
+                        code += '\tX_copy[col] = encoder.transform(X_values_str.values.reshape(-1, 1))\n'
+                    code += 'X_test_encoded = X_copy\n'
             # encode block end
             # scaler block start
             code += '\n'
@@ -682,29 +714,44 @@ class BaseModel(ABC):
             code += 'X = df.copy()\n'
             if categorical_cols:
                 code += 'categorical_cols = X.select_dtypes(include=["object", "category"]).columns.tolist()\n'
-                code += '# Create and fit encoders on entire dataset\n'
-                code += 'encoders = dict()\n'
-                code += 'for col in categorical_cols:\n'
-                match features_encoder:
-                    case "LabelEncoder":
-                        code += '\tencoder = LabelEncoder()\n'
-                        code += '\tencoder.fit(X[col].astype(str)) # Convert to string to handle mixed types\n'
-                    case "OrdinalEncoder":
-                        code += '\tencoder = OrdinalEncoder()\n'
-                        code += '\tencoder.fit(X[[col]]) # Or: X[col].to_frame() or X[col].values.reshape(-1, 1)\n'
-                code += '\tencoders[col] = encoder\n'
+                if features_encoder == "OneHotEncoder":
+                    code += '\n# Create encoder\n'
+                    code += 'encoder = OneHotEncoder(sparse_output=False, handle_unknown="ignore")\n'
+                else:
+                    code += '\n# Create and fit encoders on entire dataset\n'
+                    code += 'encoders = dict()\n'
+                    code += 'for col in categorical_cols:\n'
+                    match features_encoder:
+                        case "LabelEncoder":
+                            code += '\tencoder = LabelEncoder()\n'
+                            code += '\tencoder.fit(X[col].astype(str)) # Convert to string to handle mixed types\n'
+                        case "OrdinalEncoder":
+                            code += '\tencoder = OrdinalEncoder()\n'
+                            code += '\tencoder.fit(X[[col]]) # Or: X[col].to_frame() or X[col].values.reshape(-1, 1)\n'
+                    code += '\tencoders[col] = encoder\n'
+                code += '\n'
             code += 'X_encoded = X.copy()\n'
             if categorical_cols:
-                code += '\n# Apply encoders\n'
-                code += 'X_copy = X.copy()\n'
-                code += 'for col, encoder in encoders.items():\n'
-                code += '\tif col not in X_copy.columns:\n'
-                code += '\t\tcontinue\n'
-                if features_encoder == "LabelEncoder":
-                    code += '\tX_copy[col] = encoder.transform(X_values_str)\n'
+                if features_encoder == "OneHotEncoder":
+                    code += '# Apply encoder\n'
+                    code += 'X_encoded_ohe = pd.DataFrame(\n'
+                    code += '\tencoder.fit_transform(X_encoded[categorical_cols]),\n'
+                    code += '\tcolumns=encoder.get_feature_names_out(categorical_cols),\n'
+                    code += '\tindex=X_encoded.index\n'
+                    code += ')\n'
+                    code += 'other_cols = X_encoded.drop(columns=categorical_cols).columns\n'
+                    code += 'X_encoded = pd.concat([X_encoded[other_cols], X_encoded_ohe], axis=1)\n'
                 else:
-                    code += '\tX_copy[col] = encoder.transform(X_values_str.values.reshape(-1, 1))\n'
-                code += 'X_encoded = X_copy\n'
+                    code += '# Apply encoders\n'
+                    code += 'X_copy = X.copy()\n'
+                    code += 'for col, encoder in encoders.items():\n'
+                    code += '\tif col not in X_copy.columns:\n'
+                    code += '\t\tcontinue\n'
+                    if features_encoder == "LabelEncoder":
+                        code += '\tX_copy[col] = encoder.transform(X_values_str)\n'
+                    else:
+                        code += '\tX_copy[col] = encoder.transform(X_values_str.values.reshape(-1, 1))\n'
+                    code += 'X_encoded = X_copy\n'
             code += '\n'
             if scaler == "StandardScaler":
                 code += 'scaler = StandardScaler()\n'

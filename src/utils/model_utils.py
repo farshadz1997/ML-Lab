@@ -29,7 +29,8 @@ from sklearn.metrics import (
     calinski_harabasz_score,
     davies_bouldin_score
 )
-from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, TargetEncoder
+from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, TargetEncoder, OneHotEncoder
+from sklearn.exceptions import NotFittedError
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 import flet as ft
@@ -1029,7 +1030,7 @@ def create_categorical_encoders(
     X_train: pd.DataFrame,
     y: pd.Series | None,
     categorical_cols: List[str],
-    encoder_name: Literal["OrdinalEncoder", "TargetEncoder", "LabelEncoder"] = "OrdinalEncoder"
+    encoder_name: Literal["OrdinalEncoder", "TargetEncoder", "LabelEncoder", "OneHotEncoder"] = "OrdinalEncoder"
 ) -> Dict[str, LabelEncoder]:
     """
     Create and fit LabelEncoders for categorical columns.
@@ -1139,6 +1140,27 @@ def apply_encoders(
         X_copy[col] = encoder.transform(X_values_str) if isinstance(encoder, LabelEncoder) else encoder.transform(X_values_str.values.reshape(-1, 1))
     
     return X_copy
+
+
+def encode_with_one_hot_encoder(encoder: OneHotEncoder, df: pd.DataFrame, categorical_cols: List[str], fit: bool) -> pd.DataFrame:
+    try:
+        if fit:
+            encoder.fit(df[categorical_cols])
+        X_encoded_ohe = pd.DataFrame(
+            encoder.transform(df[categorical_cols]),
+            columns=encoder.get_feature_names_out(categorical_cols),
+            index=df.index
+        )
+        other_cols = df.drop(columns=categorical_cols).columns
+        return pd.concat([df[other_cols], X_encoded_ohe], axis=1)
+    except NotFittedError:
+        X_encoded_ohe = pd.DataFrame(
+            encoder.fit_transform(df[categorical_cols]),
+            columns=encoder.get_feature_names_out(categorical_cols),
+            index=df.index
+        )
+        other_cols = df.drop(columns=categorical_cols).columns
+        return pd.concat([df[other_cols], X_encoded_ohe], axis=1)
 
 
 def get_encoding_mappings(

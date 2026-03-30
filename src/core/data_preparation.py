@@ -13,13 +13,14 @@ from typing import Tuple, List, Dict, Optional, Any, Literal
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler, OneHotEncoder, TargetEncoder, OrdinalEncoder
 
 from utils.model_utils import (
     detect_categorical_columns,
     validate_cardinality,
     create_categorical_encoders,
     apply_encoders,
+    encode_with_one_hot_encoder,
     CardinalityWarning,
     EncodingError,
 )
@@ -32,7 +33,7 @@ def prepare_data_for_training(
     random_state: Optional[int] = None,
     raise_on_unseen: bool = True,
     scaler_mode: Literal['standard_scaler', 'minmax_scaler', 'none'] = 'standard_scaler',
-    features_encoder: Literal["OrdinalEncoder", "TargetEncoder", "LabelEncoder"] = "OrdinalEncoder",
+    features_encoder: Literal["OrdinalEncoder", "TargetEncoder", "LabelEncoder", "OneHotEncoder"] = "OrdinalEncoder",
     target_encoder: Literal["None", "LabelEncoder"] = "None"
 ) -> Tuple[
     np.ndarray,
@@ -41,7 +42,7 @@ def prepare_data_for_training(
     pd.Series,
     List[str],
     List[str],
-    Dict[str, LabelEncoder],
+    Dict[str, LabelEncoder | TargetEncoder | OrdinalEncoder] | OneHotEncoder,
     Optional[StandardScaler | MinMaxScaler],
     Dict[str, CardinalityWarning],
 ]:
@@ -124,28 +125,38 @@ def prepare_data_for_training(
     encoders = {}
     if categorical_cols:
         try:
-            encoders = create_categorical_encoders(X_train, y_train, categorical_cols, features_encoder)
+            if features_encoder == "OneHotEncoder":
+                encoder = OneHotEncoder(sparse_output=False, handle_unknown="ignore")
+                encoders = encoder
+            else:
+                encoders = create_categorical_encoders(X_train, y_train, categorical_cols, features_encoder)
         except EncodingError as e:
             raise ValueError(f"Failed to create encoders: {str(e)}")
     
     # Step 7: Apply encoders to training data
     X_train_encoded = X_train.copy()
     if categorical_cols:
-        X_train_encoded = apply_encoders(
-            encoders,
-            X_train_encoded,
-            raise_on_unknown=False,  # Training data should not have unknown values
-        )
+        if features_encoder == "OneHotEncoder":
+            X_train_encoded = encode_with_one_hot_encoder(encoder, X_train_encoded, categorical_cols, True)
+        else:
+            X_train_encoded = apply_encoders(
+                encoders,
+                X_train_encoded,
+                raise_on_unknown=False,  # Training data should not have unknown values
+            )
     
     # Step 8: Apply same encoders to test data (detect unseen values)
     X_test_encoded = X_test.copy()
     if categorical_cols:
         try:
-            X_test_encoded = apply_encoders(
-                encoders,
-                X_test_encoded,
-                raise_on_unknown=raise_on_unseen,
-            )
+            if features_encoder == "OneHotEncoder":
+                X_test_encoded = encode_with_one_hot_encoder(encoder, X_test_encoded, categorical_cols, False)
+            else:
+                X_test_encoded = apply_encoders(
+                    encoders,
+                    X_test_encoded,
+                    raise_on_unknown=raise_on_unseen,
+                )
         except EncodingError as e:
             if raise_on_unseen:
                 raise
@@ -192,7 +203,7 @@ def prepare_data_for_training_no_split(
     pd.Series | None,
     List[str],
     List[str],
-    Dict[str, LabelEncoder],
+    Dict[str, LabelEncoder | OrdinalEncoder | TargetEncoder] | OneHotEncoder,
     Optional[StandardScaler | MinMaxScaler],
     Dict[str, CardinalityWarning],
 ]:
@@ -241,7 +252,11 @@ def prepare_data_for_training_no_split(
     encoders = {}
     if categorical_cols:
         try:
-            encoders = create_categorical_encoders(X, y, categorical_cols, features_encoder)
+            if features_encoder == "OneHotEncoder":
+                encoder = OneHotEncoder(sparse_output=False, handle_unknown="ignore")
+                encoders = encoder
+            else:
+                encoders = create_categorical_encoders(X, y, categorical_cols, features_encoder)
         except EncodingError as e:
             raise ValueError(f"Failed to create encoders: {str(e)}")
     
@@ -249,11 +264,14 @@ def prepare_data_for_training_no_split(
     X_encoded = X.copy()
     if categorical_cols:
         try:
-            X_encoded = apply_encoders(
-                encoders,
-                X_encoded,
-                raise_on_unknown=raise_on_unseen,
-            )
+            if features_encoder == "OneHotEncoder":
+                X_encoded = encode_with_one_hot_encoder(encoders, X_encoded, categorical_cols, True)
+            else:
+                X_encoded = apply_encoders(
+                    encoders,
+                    X_encoded,
+                    raise_on_unknown=raise_on_unseen,
+                )
         except EncodingError as e:
             if raise_on_unseen:
                 raise
