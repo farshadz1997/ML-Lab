@@ -40,6 +40,7 @@ A comprehensive desktop application for exploring datasets, training machine lea
   - **Regression metrics:** R² Score, Adjusted R² Score, Mean Squared Error, Mean Absolute Error, Mean Absolute Percentage Error
   - **Clustering metrics:** Silhouette Score, Davies-Bouldin Index, Calinski-Harabasz Index
   - Detailed results with copy functionality
+  - Provide a code block to recreate model
 
 - **Data Profiling**
   - YData Profiling integration for comprehensive dataset reports
