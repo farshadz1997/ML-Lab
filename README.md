@@ -29,13 +29,15 @@ A comprehensive desktop application for exploring datasets, training machine lea
 - **Model Configuration**
   - Flexible hyperparameter tuning with validation
   - Multiple scaling options: Standard Scaler, MinMax Scaler, None
+  - Features encoder options: OrdinalEncoder, TargetEncoder, OneHotEncoder, LabelEncoder
+  - Target encoder options: None, LabelEncoder
   - Configurable train/test split for supervised learning
   - Automatic feature selection
   - Test new data on trained model
 
 - **Model Evaluation**
   - **Classification metrics:** Accuracy, Precision, Recall, F1-Score, Confusion Matrix
-  - **Regression metrics:** R² Score, Adjusted R² Score, Mean Squared Error, Mean Absolute Error
+  - **Regression metrics:** R² Score, Adjusted R² Score, Mean Squared Error, Mean Absolute Error, Mean Absolute Percentage Error
   - **Clustering metrics:** Silhouette Score, Davies-Bouldin Index, Calinski-Harabasz Index
   - Detailed results with copy functionality
 
