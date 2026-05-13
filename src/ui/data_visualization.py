@@ -44,11 +44,11 @@ class DataVisualization:
         viz_type = e.control.value
         self._update_viz_options(viz_type)
     
-    def _add_chart_control(self, e: ft.ControlEvent, chart_function: Callable) -> None:
+    def _add_chart_control(self, button: ft.FilledButton, chart_function: Callable) -> None:
         try:
             if self.chart_card in self.column.controls:
                 self.column.controls.remove(self.chart_card)
-            e.control.disabled = True
+            button.disabled = True
             self.page.navigation_bar.disabled = True
             self.page.update()
             chart_card = chart_function()
@@ -60,7 +60,7 @@ class DataVisualization:
         except Exception as e:
             self.page.open(ft.SnackBar(ft.Text(e, font_family="SF regular")))
         finally:
-            e.control.disabled = False
+            button.disabled = False
             self.page.navigation_bar.disabled = False
             self.page.update()
     
@@ -100,7 +100,7 @@ class DataVisualization:
                 chart_config = HistogramChart(self.parent.dataset.df, self, self.page)
                 config_card = chart_config.build_chart_settings_control()
                 
-        generate_chart_button.on_click = lambda e: self._add_chart_control(e, chart_config.build_chart_control)
+        generate_chart_button.on_click = lambda _: self._add_chart_control(generate_chart_button, chart_config.build_chart_control)
         config_card.content.content.controls.append(
             ft.Row(
                 alignment=ft.MainAxisAlignment.CENTER,
@@ -274,7 +274,7 @@ class DataVisualization:
                 text_style=ft.TextStyle(font_family="SF regular"),
             )
         )
-        generate_chart_button.on_click = lambda e: self._add_chart_control(e, chart_config.build_chart_control)
+        generate_chart_button.on_click = lambda _: self._add_chart_control(generate_chart_button, chart_config.build_chart_control)
         self.config_card.content.content.controls.append(
             ft.Row(
                 alignment=ft.MainAxisAlignment.CENTER,
